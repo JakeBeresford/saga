@@ -1,0 +1,41 @@
+/* Base page + diff2html dark overrides for the standalone saga.
+   Ported from otto's diff.css (the subset the saga view needs); recolors
+   diff2html's output to the instrument-ink tokens. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font-sans); background: var(--bg); color: var(--text); }
+
+.header { background: var(--surface); border-bottom: 1px solid var(--line); padding: 16px 32px; }
+.header h1 { font-size: var(--fs-xl); font-weight: 600; }
+
+/* --- diff2html recolour --- */
+.d2h-wrapper { background: var(--bg); }
+.d2h-file-header { background: var(--surface) !important; border-color: var(--line) !important; color: var(--text) !important; }
+.d2h-file-name-wrapper { color: var(--text) !important; }
+.d2h-file-name { color: var(--accent) !important; font-family: var(--font-mono) !important; }
+.d2h-file-stats { color: var(--text) !important; }
+.d2h-file-diff { background: var(--bg); }
+.d2h-code-line-ctn, .d2h-code-line { background: var(--bg) !important; color: var(--text) !important; }
+.d2h-code-linenumber { background: var(--surface) !important; color: var(--text-faint) !important; border-color: var(--line) !important; }
+.d2h-del { background: var(--diff-del-bg) !important; }
+.d2h-ins { background: var(--diff-add-bg) !important; }
+.d2h-del .d2h-code-line-ctn { background: var(--diff-del-bg) !important; }
+.d2h-ins .d2h-code-line-ctn { background: var(--diff-add-bg) !important; }
+.d2h-del .d2h-code-linenumber { background: var(--diff-del-gutter) !important; }
+.d2h-ins .d2h-code-linenumber { background: var(--diff-add-gutter) !important; }
+.d2h-info { background: var(--diff-info-bg) !important; color: var(--text-dim) !important; }
+.d2h-info .d2h-code-line-ctn { background: var(--diff-info-bg) !important; color: var(--text-dim) !important; }
+.d2h-diff-table { border-color: var(--line) !important; }
+.d2h-file-wrapper { border: 1px solid var(--line) !important; border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+.d2h-tag { display: none !important; }
+.d2h-file-collapse { color: var(--text-dim) !important; }
+.d2h-file-collapse:hover { color: var(--text) !important; }
+del, ins { text-decoration: none; }
+del { background: var(--diff-del-strong) !important; }
+ins { background: var(--diff-add-strong) !important; }
+
+@media (max-width: 640px) {
+  .header { padding: 14px 16px; }
+  .header h1 { font-size: var(--fs-lg); }
+  .d2h-file-wrapper { overflow-x: auto; }
+}

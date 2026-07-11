@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "saga-cli"
+version = "0.1.0"
+description = "Generate a self-contained static HTML saga of a git diff — a chapter-by-chapter guided tour of a change."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["instructor", "anthropic", "openai"]
+
+[project.scripts]
+saga = "saga.cli:main"
+
+# The prompt (prompts/) and static assets (assets/) live inside the package, so
+# hatchling ships them in the wheel automatically — they resolve relative to the
+# package at runtime.
+[tool.hatch.build.targets.wheel]
+packages = ["saga"]
