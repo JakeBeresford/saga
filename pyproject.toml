@@ -33,13 +33,11 @@ Issues = "https://github.com/JakeBeresford/saga/issues"
 [project.scripts]
 saga = "saga.cli:main"
 
-# Test/dev dependencies (PEP 735). Install with `uv sync --group test` or
-# `uv pip install -e . pytest vcrpy`. VCR records the LLM HTTP calls once and
-# replays them offline; recorded auth headers are scrubbed (see tests/conftest.py).
+# Dev/test dependencies (PEP 735). Install with `uv sync --group dev`. VCR
+# (vcrpy) records the LLM HTTP calls once and replays them offline; recorded
+# auth headers are scrubbed (see tests/conftest.py).
 [dependency-groups]
-test = ["pytest", "vcrpy"]
-# dev includes test so `ty check .` can resolve pytest/vcr in the test files.
-dev = ["ruff", "ty", { include-group = "test" }]
+dev = ["pytest", "vcrpy", "ruff", "ty"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
