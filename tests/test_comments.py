@@ -44,9 +44,21 @@ def test_payload_never_sets_event_so_review_is_pending():
 
 def test_inline_comments_map_path_line_side_body():
     payload = build_review_payload(SIDECAR)
-    inline = [c for c in payload["comments"] if not c["body"].startswith("**File-level")]
-    assert {"path": "calc.py", "line": 2, "side": "RIGHT", "body": "Clarify this comment."} in inline
-    assert {"path": "calc.py", "line": 9, "side": "LEFT", "body": "Why removed?"} in inline
+    inline = [
+        c for c in payload["comments"] if not c["body"].startswith("**File-level")
+    ]
+    assert {
+        "path": "calc.py",
+        "line": 2,
+        "side": "RIGHT",
+        "body": "Clarify this comment.",
+    } in inline
+    assert {
+        "path": "calc.py",
+        "line": 9,
+        "side": "LEFT",
+        "body": "Why removed?",
+    } in inline
 
 
 def test_file_comment_anchored_and_prefixed():
