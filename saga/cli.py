@@ -26,6 +26,13 @@ from .render import render
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "comments":
+        from .comments import comments_main
+
+        return comments_main(argv[1:])
+
     parser = argparse.ArgumentParser(
         prog="saga",
         description="Generate a self-contained PR saga as static HTML.",
