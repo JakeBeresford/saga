@@ -1,0 +1,145 @@
+/* PR saga view — chapter-based review. Consumes the shared design
+   tokens (tokens.css); status colours come from the instrument-ink lights. */
+
+.saga-crumbs { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 10px; }
+.saga-crumbs a { color: var(--accent); text-decoration: none; }
+.saga-crumbs a:hover { color: var(--accent-bright); text-decoration: underline; }
+.saga-crumb-sep { margin: 0 8px; color: var(--text-faint); }
+.saga-crumb-current { color: var(--text); }
+
+.saga-verdict {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+
+#saga-notice { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+.saga-error {
+  background: var(--danger-loud-bg);
+  border: 1px solid var(--danger);
+  color: var(--danger-ink);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: var(--fs-base);
+}
+.saga-error a { color: var(--accent); }
+
+.saga-loading {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  padding: 24px 0;
+}
+
+/* --- table of contents --- */
+
+.saga-toc { max-width: 1000px; margin: 0 auto; padding: 8px 24px 40px; }
+.saga-toc-title, .saga-chapter-title { color: var(--text); }
+.saga-toc-title { font-size: var(--fs-lg); font-weight: 600; margin: 16px 0 12px; }
+
+.saga-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.saga-toc-item:hover { border-color: var(--accent); background: var(--hover); }
+
+.saga-toc-head { display: flex; align-items: center; gap: 10px; }
+.saga-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; padding: 0 6px;
+  background: var(--surface-2); color: var(--text-dim); border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600;
+}
+.saga-toc-titletext { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+.saga-toc-summary { color: var(--text-dim); font-size: var(--fs-sm); margin: 6px 0 8px 34px; }
+
+/* --- badges --- */
+
+.saga-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 34px; }
+.saga-reader .saga-badges { margin-left: 0; }
+.saga-badge {
+  font-size: var(--fs-eyebrow); padding: 2px 8px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line); color: var(--text-dim); background: var(--surface-2);
+}
+.saga-plan { color: var(--text-dim); }
+.saga-qa { color: var(--ok); border-color: var(--ok-solid); background: var(--ok-tint); }
+.saga-read { color: var(--accent); border-color: var(--accent-solid); background: var(--accent-tint); }
+/* Deviations must be loud. */
+.saga-dev {
+  color: var(--danger-ink); background: var(--danger-loud); border-color: var(--danger); font-weight: 600;
+}
+/* Low confidence flagged for close review (amber). */
+.saga-low {
+  color: var(--warn-ink); background: var(--warn); border-color: var(--warn-solid); font-weight: 600;
+}
+
+/* --- chapter reader --- */
+
+.saga-reader { max-width: 1000px; margin: 0 auto; padding: 8px 24px 60px; }
+
+.saga-reader-nav {
+  display: flex; align-items: center; gap: 8px; padding: 10px 0;
+}
+.saga-nav-top { border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.saga-nav-bottom { border-top: 1px solid var(--line); margin-top: 16px; }
+.saga-nav-spacer { flex: 1; }
+.saga-progress { color: var(--text-dim); font-size: var(--fs-sm); font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
+.saga-btn {
+  font: inherit; font-size: var(--fs-sm); cursor: pointer; padding: 5px 12px;
+  border-radius: var(--radius); border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text);
+  transition: border-color var(--transition);
+}
+.saga-btn:hover:not(:disabled) { border-color: var(--accent); }
+.saga-btn:disabled { opacity: 0.4; cursor: default; }
+
+.saga-chapter-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.saga-chapter-title { font-size: var(--fs-xl); font-weight: 600; margin: 0; }
+
+/* Loud deviation banner. */
+.saga-deviation {
+  background: var(--danger-loud-bg); border: 1px solid var(--danger); border-left: 4px solid var(--danger);
+  color: var(--danger-ink); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; font-size: var(--fs-base);
+}
+.saga-lowconf {
+  background: var(--warn-tint); border: 1px solid var(--warn-solid); border-left: 4px solid var(--warn);
+  color: var(--warn); border-radius: var(--radius); padding: 10px 16px; margin: 14px 0; font-size: var(--fs-base);
+}
+
+.saga-narration {
+  color: var(--text); font-size: var(--fs-md); line-height: 1.6; margin: 14px 0;
+}
+.saga-narration p { margin: 0 0 10px; }
+.saga-narration code {
+  background: var(--surface-2); padding: 1px 5px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--fs-sm);
+}
+
+.saga-qanote { color: var(--ok); font-size: var(--fs-sm); margin: 8px 0; }
+
+.saga-readmark {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-dim); font-size: var(--fs-sm); margin: 8px 0 16px; cursor: pointer;
+}
+
+.saga-chapter-diff { margin-top: 8px; }
+.saga-empty { color: var(--text-dim); font-size: var(--fs-base); padding: 16px 0; }
+
+/* --- narrow screens: tighten the reader gutter (the 1000px max-width already
+   goes fluid below that width) and shrink the chapter title. --- */
+@media (max-width: 640px) {
+  #saga-notice, .saga-toc, .saga-reader { padding-left: 16px; padding-right: 16px; }
+  .saga-chapter-title { font-size: var(--fs-lg); }
+}

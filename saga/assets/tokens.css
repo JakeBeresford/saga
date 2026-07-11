@@ -1,0 +1,131 @@
+/* Saga — design tokens ("instrument ink").
+ *
+ * Single source of truth for the saga page. A cool CYAN accent means
+ * "a human can act here" (links, focus), and a strict three-light status system
+ * — green (clear) · amber (attention) · red (deviation) — is reserved for the
+ * agent's own state and never used as chrome.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- ink: layered near-black graphite with a faint cool cast --- */
+  --bg:            #0b0e13;   /* page canvas                         */
+  --surface:       #141922;   /* cards, panels, headers              */
+  --surface-2:     #1d2430;   /* raised: buttons, inputs, code       */
+  --surface-accent:#16232b;   /* cyan-tinted raise (own messages)    */
+  --hover:         rgba(120,150,180,0.07);
+
+  /* --- lines --- */
+  --line:      #2a323f;       /* default border                      */
+  --line-soft: #20262f;       /* quiet divider                       */
+
+  /* --- text --- */
+  --text:       #e7ecf3;      /* primary                             */
+  --text-dim:   #9aa7b8;      /* secondary / labels                  */
+  --text-faint: #5f6b7d;      /* tertiary / line numbers, separators */
+
+  /* --- accent: signal cyan = "a human can act here" --- */
+  --accent:        #57c7e3;
+  --accent-bright: #8ad9ef;   /* hover / brighter link               */
+  --accent-solid:  #2b93b3;   /* solid fills (primary button)        */
+  --accent-ink:    #04141b;   /* text on a solid accent fill         */
+  --accent-tint:   rgba(87,199,227,0.12);
+  --focus-ring:    rgba(87,199,227,0.40);
+
+  /* --- status lights (agent state only) --- */
+  --ok:         #4ec98a;      /* clear                               */
+  --ok-bright:  #7ee7b0;
+  --ok-solid:   #2f9e63;
+  --ok-ink:     #04140c;
+  --ok-tint:    rgba(78,201,138,0.15);
+
+  --warn:       #e0a83e;      /* attention                           */
+  --warn-solid: #c78a2a;
+  --warn-ink:   #1b1200;      /* text on a solid amber fill          */
+  --warn-tint:  rgba(224,168,62,0.15);
+
+  --danger:        #f2685f;   /* deviation                           */
+  --danger-bright: #ff9c94;
+  --danger-ink:    #ffe1de;   /* text on a solid/loud red fill       */
+  --danger-tint:   rgba(242,104,95,0.14);
+  --danger-loud:   #b62324;   /* loud deviation fill                 */
+  --danger-loud-bg:#3d1518;   /* loud deviation panel bg             */
+  --danger-loud-border:#f2685f;
+
+  /* --- diff shading (derived from status hues) --- */
+  --diff-add-bg:     rgba(78,201,138,0.10);
+  --diff-add-strong: rgba(78,201,138,0.30);
+  --diff-add-gutter: rgba(78,201,138,0.15);
+  --diff-del-bg:     rgba(242,104,95,0.10);
+  --diff-del-strong: rgba(242,104,95,0.30);
+  --diff-del-gutter: rgba(242,104,95,0.15);
+  --diff-info-bg:    rgba(87,199,227,0.10);
+
+  /* --- type --- */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+               Menlo, Consolas, monospace;
+
+  --fs-eyebrow: 11px;   /* uppercase instrument labels               */
+  --fs-xs:      12px;
+  --fs-sm:      13px;
+  --fs-base:    14px;
+  --fs-md:      15px;
+  --fs-lg:      16px;
+  --fs-xl:      20px;
+  --fs-2xl:     22px;
+
+  --tracking-eyebrow: 0.08em;
+  --tracking-mono:    -0.01em;
+
+  /* --- geometry --- */
+  --radius-sm:   4px;
+  --radius:      6px;
+  --radius-lg:   8px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --shadow:    0 8px 24px rgba(0,0,0,0.35);
+  --shadow-up: 0 -4px 12px rgba(0,0,0,0.30);
+
+  --transition: 120ms ease;
+
+  /* the status rail defaults to accent; pages recolor it via a modifier */
+  --rail: var(--accent);
+}
+
+/* --- reset shared by every page --- */
+* { box-sizing: border-box; }
+
+/* Visible, on-brand keyboard focus everywhere; never suppressed. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* --- signature: the status rail ------------------------------------
+ * A thin backlit edge across the top of the page. It shifts colour to
+ * the most important state present:
+ * accent (idle) · green (clear) · amber (attention) · red (deviation).
+ */
+.otto-rail {
+  height: 2px;
+  background: var(--rail);
+  box-shadow: 0 0 12px 0 color-mix(in srgb, var(--rail) 55%, transparent);
+}
+.otto-rail-ok   { --rail: var(--ok); }
+.otto-rail-attn { --rail: var(--warn); }
+.otto-rail-dev  { --rail: var(--danger); }
