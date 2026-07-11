@@ -16,6 +16,14 @@ Run the tests:
 python -m pytest
 ```
 
+Lint, format, and type-check (install the dev tools with `uv sync --group dev`):
+
+```sh
+uv run ruff check .          # lint
+uv run ruff format .         # auto-format
+uv run ty check .            # type check
+```
+
 To try the CLI against a real repo while developing, install it as an editable
 tool and run it from inside any git checkout:
 
@@ -29,8 +37,8 @@ saga --base main --head my-feature
 - Keep changes focused and match the existing style.
 - Add or update tests for any behavior change — the core model logic in
   `saga/model.py` is unit-tested in `tests/test_model.py`.
-- Make sure `python -m pytest` passes before opening a PR. CI runs the suite on
-  Python 3.11–3.13.
+- Make sure `python -m pytest` passes and `ruff`/`ty` are clean before opening a
+  PR. CI runs the suite on Python 3.11–3.13 plus a lint/format/type-check job.
 
 ## Reporting issues
 
