@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import instructor
 from pydantic import BaseModel, Field
@@ -54,10 +54,10 @@ class _ChapterOut(BaseModel):
     summary: str
     narration: str
     hunks: list[str] = Field(default_factory=list)
-    plan_step: Optional[str] = None
+    plan_step: str | None = None
     confidence: Literal["high", "medium", "low"] = "medium"
-    deviation: Optional[str] = None
-    qa: Optional[_QAOut] = None
+    deviation: str | None = None
+    qa: _QAOut | None = None
 
 
 class _SagaOut(BaseModel):
@@ -127,7 +127,7 @@ def _build_client(model: str) -> instructor.Instructor:
     except SagaError:
         raise
     except Exception as e:
-        raise SagaError(f"Could not initialize model {model!r}: {e}")
+        raise SagaError(f"Could not initialize model {model!r}: {e}") from e
 
 
 def generate(
@@ -169,7 +169,7 @@ def generate(
     except SagaError:
         raise
     except Exception as e:
-        raise SagaError(f"Saga generation failed: {e}")
+        raise SagaError(f"Saga generation failed: {e}") from e
 
     chapters = [_to_chapter(c) for c in result.chapters]
     validate_coverage(chapters, hunks)
