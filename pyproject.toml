@@ -8,7 +8,27 @@ version = "0.1.0"
 description = "Generate a self-contained static HTML saga of a git diff — a chapter-by-chapter guided tour of a change."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jake Beresford" }]
+keywords = ["diff", "git", "code-review", "llm", "documentation", "html"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Software Development :: Documentation",
+]
 dependencies = ["instructor", "anthropic", "openai"]
+
+[project.urls]
+Homepage = "https://github.com/JakeBeresford/saga"
+Repository = "https://github.com/JakeBeresford/saga"
+Issues = "https://github.com/JakeBeresford/saga/issues"
 
 [project.scripts]
 saga = "saga.cli:main"
