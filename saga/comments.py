@@ -42,11 +42,11 @@ def load_sidecar(path: Path) -> dict:
     try:
         raw = Path(path).read_text()
     except OSError as e:
-        raise SagaError(f"could not read comments file {path}: {e}")
+        raise SagaError(f"could not read comments file {path}: {e}") from e
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
-        raise SagaError(f"comments file {path} is not valid JSON: {e}")
+        raise SagaError(f"comments file {path} is not valid JSON: {e}") from e
 
     if not isinstance(data, dict):
         raise SagaError("comments file must be a JSON object.")
@@ -151,14 +151,13 @@ def _pr_info(repo_root: Path, branch: str) -> tuple[int, str]:
     result = _gh(repo_root, "pr", "view", branch, "--json", "number,url")
     if result.returncode != 0:
         raise SagaError(
-            f"could not find an open PR for branch '{branch}': "
-            f"{result.stderr.strip()}"
+            f"could not find an open PR for branch '{branch}': {result.stderr.strip()}"
         )
     try:
         data = json.loads(result.stdout)
         return int(data["number"]), str(data["url"])
     except (json.JSONDecodeError, KeyError, ValueError) as e:
-        raise SagaError(f"unexpected gh pr view output: {e}")
+        raise SagaError(f"unexpected gh pr view output: {e}") from e
 
 
 # ---------------------------------------------------------------------------
