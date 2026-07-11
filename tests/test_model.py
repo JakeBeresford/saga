@@ -118,6 +118,59 @@ def test_validate_coverage_rejects_empty():
         validate_coverage([], hunks)
 
 
+def test_deleted_file_path_falls_back_to_diff_git_header():
+    """A pure deletion has ``+++ /dev/null``; the path must come from the
+    ``diff --git a/… b/…`` header instead."""
+    delete_diff = (
+        "diff --git a/gone.py b/gone.py\n"
+        "deleted file mode 100644\n"
+        "index 1111111..0000000\n"
+        "--- a/gone.py\n"
+        "+++ /dev/null\n"
+        "@@ -1,2 +0,0 @@\n"
+        "-a\n"
+        "-b\n"
+    )
+    hunks = parse_hunks(delete_diff)
+    assert [h.file_path for h in hunks] == ["gone.py"]
+
+
+def test_chapter_dict_roundtrip():
+    ch = Chapter(
+        id="c1",
+        title="T",
+        summary="S",
+        narration="N",
+        hunks=["h0", "h1"],
+        plan_step="step 2",
+        confidence="high",
+        deviation="drifted",
+        qa={"status": "green", "note": "ok"},
+    )
+    assert Chapter.from_dict(ch.to_dict()) == ch
+
+
+def test_chapter_from_dict_defaults_and_normalizes_confidence():
+    ch = Chapter.from_dict({"id": "c1", "confidence": "bogus"})
+    assert ch.title == "" and ch.hunks == []
+    assert ch.confidence == "medium"  # unknown level normalized
+    assert ch.deviation is None
+
+
+def test_saga_dict_roundtrip():
+    saga = Saga(
+        branch="feature",
+        base="main",
+        commit_sha="abc123",
+        generated_at="2026-07-11T00:00:00Z",
+        chapters=[
+            Chapter(id="c1", title="t", summary="s", narration="n", hunks=["h0"])
+        ],
+    )
+    restored = Saga.from_dict(saga.to_dict())
+    assert restored.to_dict() == saga.to_dict()
+
+
 def test_verdict_counts():
     saga = Saga(
         branch="b",

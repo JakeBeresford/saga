@@ -1,0 +1,168 @@
+interactions:
+- request:
+    body: "{\"max_tokens\":16000,\"messages\":[{\"role\":\"user\",\"content\":\"#
+      Commits\\n0932e73 edit foo and add new.txt\\n\\n# Full diff (every hunk must
+      be assigned to a chapter)\\n### HUNK h0 \u2014 foo.py  (@@ -1,5 +1,5 @@)\\n@@
+      -1,5 +1,5 @@\\n a\\n-b\\n+B\\n c\\n \\n \\n### HUNK h1 \u2014 foo.py  (@@ -8,4
+      +8,5 @@ c)\\n@@ -8,4 +8,5 @@ c\\n \\n \\n x\\n+y\\n z\\n### HUNK h2 \u2014 new.txt
+      \ (@@ -0,0 +1,2 @@)\\n@@ -0,0 +1,2 @@\\n+hello\\n+world\"}],\"model\":\"claude-opus-4-8\",\"system\":[{\"type\":\"text\",\"text\":\"You
+      are giving a reviewer a guided tour of a code change \u2014 a chapter-by-chapter
+      walkthrough that makes a large diff easy to review without losing focus.\\n\\nYou
+      are handed:\\n\\n1. **The full diff**, split into labeled hunks. Every hunk
+      has a stable id like `h0`, `h1`, \u2026 shown as `### HUNK h3 \u2014 path/to/file
+      (new lines 40-55)`.\\n2. **The commit messages** on this change, for context
+      on intent and sequencing.\\n3. **Optional intent** \u2014 a plan, spec, or description
+      of what the change set out to do. This may be absent; if so, infer intent from
+      the diff and commits.\\n\\nYour job: partition the diff into an **ordered list
+      of chapters** that tell one coherent story, and explain each in your own voice.\\n\\n##
+      Rules\\n\\n- **Cover every hunk.** Every hunk id must appear in at least one
+      chapter. This is mandatory \u2014 the walkthrough is rejected if any hunk is
+      left out. A hunk may appear in more than one chapter only if it genuinely belongs
+      to both.\\n- **Order matters.** Sequence chapters so a reviewer who reads top-to-bottom
+      builds understanding naturally \u2014 usually setup/foundation first, then the
+      core change, then wiring and tests.\\n- **Group by idea, not by file.** A chapter
+      can interleave hunks from several files when they serve one idea.\\n- **Zoom
+      out when it helps.** If a chapter is about how the change fits the wider codebase,
+      say so in the narration.\\n- **Zoom in on the hard parts.** For complex or non-obvious
+      changes, explain why it was needed and why it was done this way rather than
+      an alternative.\\n\\n## What each chapter needs\\n\\n- `title` \u2014 a short,
+      concrete title.\\n- `summary` \u2014 one line for the table of contents (\u2264
+      12 words).\\n- `narration` \u2014 **2\u20134 short sentences, plain language.**
+      The intent, the key decision, and the rationale. The reviewer does not want
+      a wall of text \u2014 be brief and concrete. Markdown is allowed but keep it
+      light.\\n- `hunks` \u2014 the list of hunk ids in this chapter, in reading order.\\n-
+      `plan_step` \u2014 when an intent document was supplied, the step/section this
+      chapter maps to (e.g. `\\\"PR 1: \u2026\\\"`); otherwise `null`.\\n- `confidence`
+      \u2014 `\\\"high\\\"`, `\\\"medium\\\"`, or `\\\"low\\\"`. Use `\\\"low\\\"`
+      honestly for anything that deserves close review.\\n- `deviation` \u2014 `null`
+      unless an intent was supplied _and_ the implementation diverged from it; then
+      a short sentence explaining how and why. Be honest \u2014 deviations are highlighted
+      for the reviewer.\\n- `qa` \u2014 `null`, or `{\\\"status\\\": \\\"green\\\",
+      \\\"note\\\": \\\"\u2026\\\"}` when tests cover this chapter's changes, or `{\\\"status\\\":
+      \\\"none\\\", \\\"note\\\": \\\"\u2026\\\"}` to flag a chapter with no test
+      coverage worth noting.\\n\\n## Output\\n\\nReturn **only** a single JSON object,
+      no prose before or after, no code fences:\\n\\n```\\n{\\n  \\\"chapters\\\":
+      [\\n    {\\n      \\\"id\\\": \\\"ch1\\\",\\n      \\\"title\\\": \\\"\u2026\\\",\\n
+      \     \\\"summary\\\": \\\"\u2026\\\",\\n      \\\"narration\\\": \\\"\u2026\\\",\\n
+      \     \\\"hunks\\\": [\\\"h0\\\", \\\"h1\\\"],\\n      \\\"plan_step\\\": null,\\n
+      \     \\\"confidence\\\": \\\"high\\\",\\n      \\\"deviation\\\": null,\\n
+      \     \\\"qa\\\": {\\\"status\\\": \\\"green\\\", \\\"note\\\": \\\"Covered
+      by existing tests.\\\"}\\n    }\\n  ]\\n}\\n```\\n\"}],\"tool_choice\":{\"type\":\"tool\",\"name\":\"_SagaOut\"},\"tools\":[{\"name\":\"_SagaOut\",\"description\":\"Correctly
+      extracted `_SagaOut` with all the required parameters with correct types\",\"input_schema\":{\"$defs\":{\"_ChapterOut\":{\"properties\":{\"id\":{\"title\":\"Id\",\"type\":\"string\"},\"title\":{\"title\":\"Title\",\"type\":\"string\"},\"summary\":{\"title\":\"Summary\",\"type\":\"string\"},\"narration\":{\"title\":\"Narration\",\"type\":\"string\"},\"hunks\":{\"items\":{\"type\":\"string\"},\"title\":\"Hunks\",\"type\":\"array\"},\"plan_step\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null,\"title\":\"Plan
+      Step\"},\"confidence\":{\"default\":\"medium\",\"enum\":[\"high\",\"medium\",\"low\"],\"title\":\"Confidence\",\"type\":\"string\"},\"deviation\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"null\"}],\"default\":null,\"title\":\"Deviation\"},\"qa\":{\"anyOf\":[{\"$ref\":\"#/$defs/_QAOut\"},{\"type\":\"null\"}],\"default\":null}},\"required\":[\"id\",\"title\",\"summary\",\"narration\"],\"title\":\"_ChapterOut\",\"type\":\"object\"},\"_QAOut\":{\"properties\":{\"status\":{\"title\":\"Status\",\"type\":\"string\"},\"note\":{\"default\":\"\",\"title\":\"Note\",\"type\":\"string\"}},\"required\":[\"status\"],\"title\":\"_QAOut\",\"type\":\"object\"}},\"properties\":{\"chapters\":{\"items\":{\"$ref\":\"#/$defs/_ChapterOut\"},\"title\":\"Chapters\",\"type\":\"array\"}},\"required\":[\"chapters\"],\"title\":\"_SagaOut\",\"type\":\"object\"}}]}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      anthropic-version:
+      - '2023-06-01'
+      connection:
+      - keep-alive
+      content-length:
+      - '4829'
+      content-type:
+      - application/json
+      host:
+      - api.anthropic.com
+      user-agent:
+      - instructor/1.15.4
+      x-api-key:
+      - REDACTED
+      x-stainless-arch:
+      - arm64
+      x-stainless-async:
+      - 'false'
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - MacOS
+      x-stainless-package-version:
+      - 0.116.0
+      x-stainless-read-timeout:
+      - '600'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.12.11
+      x-stainless-timeout:
+      - '600'
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA7SUb2/bOAzGvwrB127QtDe08LtudwOGG7YB1/uDOww2IzE2UVnyJDppGuS7D5KT
+        remwl/fOIqmHD3+EvMchWHZYo3E0Wb4I45Qufrm4xQrFYo1D6prL5fKN2cRf/xp+H2+6f5avb7ci
+        n2SHFepu5FzFKVHHWGEMLgcoJUlKXrFCE7yyV6z/25/qNQTXTIlPXfJ5ai6X1//+fX3759urVfdp
+        fa/G//b04Wb3Hiv0NOR7zR/U0ccpq4ofJ8V6j6anUTmmol/UTL/M1kSLlfst0wOsQ1iMOzh6SVhh
+        moaB4g5rfEOjKDl5YiBw4hnIWyBrgcDztoSKhxhJJfgiGiAN5BywFU2gAdq5RVvPEu2qhRWbMHCC
+        9nVbzZrf9KDdtSAJxCeOyhZWrFtmD+1jW0rbp3YB9z0nBooMJqSBVcxpAjA9+Y4TbEV78AFc6MSA
+        DCMZXWCF/eQfMhPsL/NpiZ8rHB35JimPWPvJubKatVj2JoPqpeuxQssbOY45F32hjDkp6ZSwRh9m
+        GkEL3SgbIQfKj3pkcXKknBRM2HCkjhd4OFTf9nP1bD931mYqC33Us6288xqDnQwfqa3F8ayt21AY
+        phdLubM2QXvUagspEi++g7Zn58IR7DZEZ9sF3MEqkrcX5+I+gOWRfaYinCB40J4h5mHCunzP6M8h
+        X/1PfD/wFnJKTPFYgQ/a55F0Bpy5fj5UaMg5jlno+MSsRDaasxUmDWMTmVLB9OzxlUTiL9NscfZT
+        gpaVxKVTbCrPu97Pz67R8MA+YX11vbzJvU3PjYlcxmrOSy5P+chkf5Y73c0deOx54EiueTX8WP89
+        u+xfZg8Vhkmfh65f3b6IfR9sjxnkg/juTCFx3IjhRiXjzGvxlqItf5w1xwyq6ThgjZ0LK3J4OHwF
+        AAD//wMA7ZLiokUFAAA=
+    headers:
+      anthropic-organization-id:
+      - REDACTED
+      anthropic-ratelimit-input-tokens-limit:
+      - '10000000'
+      anthropic-ratelimit-input-tokens-remaining:
+      - '9999000'
+      anthropic-ratelimit-input-tokens-reset:
+      - '2026-07-11T19:48:56Z'
+      anthropic-ratelimit-output-tokens-limit:
+      - '2000000'
+      anthropic-ratelimit-output-tokens-remaining:
+      - '2000000'
+      anthropic-ratelimit-output-tokens-reset:
+      - '2026-07-11T19:49:00Z'
+      anthropic-ratelimit-requests-limit:
+      - '20000'
+      anthropic-ratelimit-requests-remaining:
+      - '19999'
+      anthropic-ratelimit-requests-reset:
+      - '2026-07-11T19:48:55Z'
+      anthropic-ratelimit-tokens-limit:
+      - '12000000'
+      anthropic-ratelimit-tokens-remaining:
+      - '11999000'
+      anthropic-ratelimit-tokens-reset:
+      - '2026-07-11T19:48:56Z'
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-encoding:
+      - gzip
+      content-security-policy:
+      - default-src 'none'; frame-ancestors 'none'
+      content-type:
+      - application/json
+      date:
+      - Sat, 11 Jul 2026 19:49:00 GMT
+      request-id:
+      - REDACTED
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=31536000; includeSubDomains; preload
+      traceresponse:
+      - REDACTED
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      x-robots-tag:
+      - none
+    status:
+      code: 200
+      message: OK
+version: 1
