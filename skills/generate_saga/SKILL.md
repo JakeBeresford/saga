@@ -44,8 +44,21 @@ run it.
    stderr. The file is fully self-contained — it can be opened offline, emailed, or
    hosted anywhere.
 
+## Reading review comments
+
+If the user has reviewed a saga in the browser and exported a `saga.comments.json`
+sidecar, read their comments as JSON with:
+
+```sh
+saga comments read --comments saga.comments.json
+```
+
+The output is `{branch, base, overall, files: {<path>: {file_comment, inline: [{line, side, body}]}}}`
+— use it to act on the reviewer's inline / per-file / overall feedback. (`saga comments push`
+posts the same comments to the PR as a pending GitHub review; that is the user's action, not
+yours, unless they ask.)
+
 ## Notes
 
-- No commenting in this version — it is a read-only guided view of the diff.
 - If generation fails (e.g. empty diff, missing API key, coverage gap), relay the
   error message to the user; it is written to stderr.

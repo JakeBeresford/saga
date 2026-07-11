@@ -1,6 +1,6 @@
 /* Base page + diff2html dark overrides for the standalone saga.
-   Ported from otto's diff.css (the subset the saga view needs); recolors
-   diff2html's output to the instrument-ink tokens. */
+   The subset of diff.css the saga view needs; recolors diff2html's output
+   to the instrument-ink tokens. */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: var(--font-sans); background: var(--bg); color: var(--text); }
