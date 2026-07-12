@@ -15,11 +15,12 @@ without touching the network.
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+import typer
 
 from .diff import repo_root_from
 from .model import SagaError
@@ -219,39 +220,39 @@ def read(sidecar_path: Path) -> int:
     return 0
 
 
-def comments_main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(
-        prog="saga comments",
-        description="Push saga review comments to GitHub, or read them as JSON.",
-    )
-    sub = parser.add_subparsers(dest="cmd", required=True)
+comments_app = typer.Typer(
+    help="Push saga review comments to GitHub, or read them as JSON.",
+    no_args_is_help=True,
+)
 
-    p_push = sub.add_parser(
-        "push", help="post comments to the PR as a pending GitHub review"
-    )
-    p_push.add_argument("--comments", type=Path, default=_DEFAULT_SIDECAR)
-    p_push.add_argument("--repo", type=Path, default=Path.cwd())
-    p_push.add_argument(
-        "--web", action="store_true", help="open the PR in a browser after pushing"
-    )
 
-    p_read = sub.add_parser(
-        "read", help="print comments as JSON on stdout (for a coding agent)"
-    )
-    p_read.add_argument("--comments", type=Path, default=_DEFAULT_SIDECAR)
-
-    args = parser.parse_args(argv)
+@comments_app.command("push")
+def push_cmd(
+    comments: Path = typer.Option(_DEFAULT_SIDECAR, "--comments"),
+    repo: Path = typer.Option(Path.cwd(), "--repo"),
+    web: bool = typer.Option(
+        False, "--web", help="open the PR in a browser after pushing"
+    ),
+) -> None:
+    """Post comments to the PR as a pending GitHub review."""
+    repo_root = repo_root_from(repo)
+    if repo_root is None:
+        typer.echo(f"error: {repo} is not inside a git repository.", err=True)
+        raise typer.Exit(1)
     try:
-        if args.cmd == "push":
-            repo_root = repo_root_from(args.repo)
-            if repo_root is None:
-                print(
-                    f"error: {args.repo} is not inside a git repository.",
-                    file=sys.stderr,
-                )
-                return 1
-            return push(args.comments, repo_root, web=args.web)
-        return read(args.comments)
+        push(comments, repo_root, web=web)
     except SagaError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
+
+
+@comments_app.command("read")
+def read_cmd(
+    comments: Path = typer.Option(_DEFAULT_SIDECAR, "--comments"),
+) -> None:
+    """Print comments as JSON on stdout (for a coding agent)."""
+    try:
+        read(comments)
+    except SagaError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e

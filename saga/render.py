@@ -112,7 +112,9 @@ def render(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> str:
 // Apply the saved theme before first paint so there is no flash.
 try {{
   var t = localStorage.getItem('saga-theme');
-  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  if (t === 'light' || t === 'dark') {{
+    document.documentElement.setAttribute('data-theme', t);
+  }}
 }} catch (e) {{}}
 </script>
 <style>

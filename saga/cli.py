@@ -13,108 +13,92 @@ Pass --intent PATH to give the model a plan/spec for richer, plan-aware narratio
 
 from __future__ import annotations
 
-import argparse
-import os
-import sys
 import webbrowser
 from pathlib import Path
 
+import typer
+
+from .comments import comments_app
 from .diff import current_branch, repo_root_from
 from .generate import generate
 from .model import SagaError
 from .render import render
 
+app = typer.Typer(
+    name="saga",
+    help="Generate a self-contained PR saga as static HTML.",
+    add_completion=False,
+)
+app.add_typer(comments_app, name="comments")
 
-def main(argv: list[str] | None = None) -> int:
-    if argv is None:
-        argv = sys.argv[1:]
-    if argv and argv[0] == "comments":
-        from .comments import comments_main
 
-        return comments_main(argv[1:])
-
-    parser = argparse.ArgumentParser(
-        prog="saga",
-        description="Generate a self-contained PR saga as static HTML.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=(
-            "subcommands:\n"
-            "  saga comments push   post review comments to the PR "
-            "as a pending GitHub review\n"
-            "  saga comments read   print review comments as JSON "
-            "(for a coding agent)\n"
-            "\n"
-            "Run `saga comments --help` for details."
-        ),
-    )
-    parser.add_argument("--base", default="main", help="base ref (default: main)")
-    parser.add_argument(
-        "--head", default="HEAD", help="head ref to walk through (default: HEAD)"
-    )
-    parser.add_argument(
-        "--intent",
-        type=Path,
-        default=None,
-        help="optional path to a plan/spec describing the change's intent",
-    )
-    parser.add_argument(
-        "--model",
-        default=os.environ.get("SAGA_MODEL", "anthropic/claude-opus-4-8"),
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    base: str = typer.Option("main", help="base ref (default: main)"),
+    head: str = typer.Option(
+        "HEAD", help="head ref to walk through (default: HEAD)"
+    ),
+    intent: Path | None = typer.Option(
+        None, help="optional path to a plan/spec describing the change's intent"
+    ),
+    model: str = typer.Option(
+        "anthropic/claude-opus-4-8",
+        envvar="SAGA_MODEL",
         help=(
             "provider/model to use, e.g. anthropic/claude-opus-4-8, openai/gpt-4o, "
             "openrouter/anthropic/claude-3.5-sonnet "
             "(default: $SAGA_MODEL or anthropic/claude-opus-4-8)"
         ),
-    )
-    parser.add_argument(
+    ),
+    output: Path = typer.Option(
+        Path("saga.html"),
         "-o",
         "--output",
-        type=Path,
-        default=Path("saga.html"),
         help="output HTML path (default: saga.html)",
-    )
-    parser.add_argument(
-        "--repo",
-        type=Path,
-        default=Path.cwd(),
-        help="path inside the target git repo (default: cwd)",
-    )
-    parser.add_argument(
-        "--open",
-        action=argparse.BooleanOptionalAction,
-        default=True,
+    ),
+    repo: Path = typer.Option(
+        Path.cwd(), "--repo", help="path inside the target git repo (default: cwd)"
+    ),
+    open_browser: bool = typer.Option(
+        True,
+        "--open/--no-open",
         help="open the result in a browser (default: on; use --no-open to disable)",
-    )
-    args = parser.parse_args(argv)
+    ),
+) -> None:
+    """Generate a self-contained PR saga as static HTML."""
+    if ctx.invoked_subcommand is not None:
+        return
 
-    repo_root = repo_root_from(args.repo)
+    repo_root = repo_root_from(repo)
     if repo_root is None:
-        print(f"error: {args.repo} is not inside a git repository.", file=sys.stderr)
-        return 1
+        typer.echo(f"error: {repo} is not inside a git repository.", err=True)
+        raise typer.Exit(1)
 
-    intent = None
-    if args.intent is not None:
+    intent_text = None
+    if intent is not None:
         try:
-            intent = args.intent.read_text()
+            intent_text = intent.read_text()
         except OSError as e:
-            print(f"error: could not read intent file: {e}", file=sys.stderr)
-            return 1
+            typer.echo(f"error: could not read intent file: {e}", err=True)
+            raise typer.Exit(1) from e
 
-    head = current_branch(repo_root) if args.head == "HEAD" else args.head
-    print(f"Generating saga for {args.base}...{head} …", file=sys.stderr)
+    resolved_head = current_branch(repo_root) if head == "HEAD" else head
+    typer.echo(f"Generating saga for {base}...{resolved_head} …", err=True)
     try:
-        saga = generate(repo_root, args.base, head, model=args.model, intent=intent)
+        saga = generate(
+            repo_root, base, resolved_head, model=model, intent=intent_text
+        )
         html = render(repo_root, saga)
     except SagaError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
 
-    args.output.write_text(html)
-    print(f"Wrote {args.output} ({len(saga.chapters)} chapters).", file=sys.stderr)
-    if args.open:
-        webbrowser.open(args.output.resolve().as_uri())
-    return 0
+    output.write_text(html)
+    typer.echo(f"Wrote {output} ({len(saga.chapters)} chapters).", err=True)
+    if open_browser:
+        webbrowser.open(output.resolve().as_uri())
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app()

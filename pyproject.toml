@@ -23,7 +23,12 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Software Development :: Documentation",
 ]
-dependencies = ["instructor", "anthropic", "openai"]
+dependencies = [
+    "instructor",
+    "anthropic",
+    "openai",
+    "typer>=0.26.8",
+]
 
 [project.urls]
 Homepage = "https://github.com/JakeBeresford/saga"
@@ -31,7 +36,7 @@ Repository = "https://github.com/JakeBeresford/saga"
 Issues = "https://github.com/JakeBeresford/saga/issues"
 
 [project.scripts]
-saga = "saga.cli:main"
+saga = "saga.cli:app"
 
 # Dev/test dependencies (PEP 735). Install with `uv sync --group dev`. VCR
 # (vcrpy) records the LLM HTTP calls once and replays them offline; recorded
@@ -50,6 +55,11 @@ target-version = "py311"
 [tool.ruff.lint]
 # pycodestyle (E/W), Pyflakes (F), isort (I), pyupgrade (UP), flake8-bugbear (B).
 select = ["E", "W", "F", "I", "UP", "B"]
+
+# Typer's API puts `typer.Option(...)`/`Path.cwd()` in parameter defaults by
+# design; exempt them from flake8-bugbear's B008 (function-call-in-default).
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument", "pathlib.Path.cwd"]
 
 [tool.ty.environment]
 python-version = "3.11"

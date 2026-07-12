@@ -1213,6 +1213,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "instructor" },
     { name = "openai" },
+    { name = "typer" },
 ]
 
 [package.dev-dependencies]
@@ -1228,6 +1229,7 @@ requires-dist = [
     { name = "anthropic" },
     { name = "instructor" },
     { name = "openai" },
+    { name = "typer", specifier = ">=0.26.8" },
 ]
 
 [package.metadata.requires-dev]

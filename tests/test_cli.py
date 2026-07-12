@@ -1,13 +1,18 @@
 """Tests for the CLI entry point: argument handling, repo detection, intent
 loading, browser opening, and error-to-exit-code mapping. The LLM/render layers
-are stubbed — generation itself is covered in test_generate.py."""
+are stubbed — generation itself is covered in test_generate.py. The Typer app is
+driven through Typer's CliRunner, which reports the process exit code."""
 
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 import saga.cli as cli
+from saga.cli import app
 from saga.model import Chapter, Saga, SagaError
+
+runner = CliRunner()
 
 
 @pytest.fixture
@@ -39,7 +44,8 @@ def stub_pipeline(monkeypatch):
 
 def test_main_happy_path_writes_output(git_repo: Path, tmp_path: Path, stub_pipeline):
     out = tmp_path / "saga.html"
-    rc = cli.main(
+    result = runner.invoke(
+        app,
         [
             "--repo",
             str(git_repo),
@@ -50,9 +56,9 @@ def test_main_happy_path_writes_output(git_repo: Path, tmp_path: Path, stub_pipe
             "-o",
             str(out),
             "--no-open",
-        ]
+        ],
     )
-    assert rc == 0
+    assert result.exit_code == 0
     assert out.read_text() == "<html>saga</html>"
     assert stub_pipeline["generate"]["base"] == "main"
     assert stub_pipeline["generate"]["head"] == "feature"
@@ -63,17 +69,18 @@ def test_main_resolves_head_from_current_branch(
     git_repo: Path, tmp_path, stub_pipeline
 ):
     """With the default --head HEAD, the checked-out branch name is resolved."""
-    rc = cli.main(
-        ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
     )
-    assert rc == 0
+    assert result.exit_code == 0
     assert stub_pipeline["generate"]["head"] == "feature"
 
 
 def test_main_reads_intent_file(git_repo: Path, tmp_path, stub_pipeline):
     intent = tmp_path / "intent.md"
     intent.write_text("Do the thing.")
-    rc = cli.main(
+    result = runner.invoke(
+        app,
         [
             "--repo",
             str(git_repo),
@@ -82,16 +89,15 @@ def test_main_reads_intent_file(git_repo: Path, tmp_path, stub_pipeline):
             "-o",
             str(tmp_path / "o.html"),
             "--no-open",
-        ]
+        ],
     )
-    assert rc == 0
+    assert result.exit_code == 0
     assert stub_pipeline["generate"]["intent"] == "Do the thing."
 
 
-def test_main_missing_intent_file_errors(
-    git_repo: Path, tmp_path, stub_pipeline, capsys
-):
-    rc = cli.main(
+def test_main_missing_intent_file_errors(git_repo: Path, tmp_path, stub_pipeline):
+    result = runner.invoke(
+        app,
         [
             "--repo",
             str(git_repo),
@@ -100,30 +106,32 @@ def test_main_missing_intent_file_errors(
             "-o",
             str(tmp_path / "o.html"),
             "--no-open",
-        ]
+        ],
     )
-    assert rc == 1
-    assert "could not read intent file" in capsys.readouterr().err
+    assert result.exit_code == 1
+    assert "could not read intent file" in result.output
 
 
-def test_main_not_a_git_repo_errors(tmp_path: Path, stub_pipeline, capsys):
+def test_main_not_a_git_repo_errors(tmp_path: Path, stub_pipeline):
     outside = tmp_path / "plain"
     outside.mkdir()
-    rc = cli.main(["--repo", str(outside), "-o", str(tmp_path / "o.html"), "--no-open"])
-    assert rc == 1
-    assert "not inside a git repository" in capsys.readouterr().err
+    result = runner.invoke(
+        app, ["--repo", str(outside), "-o", str(tmp_path / "o.html"), "--no-open"]
+    )
+    assert result.exit_code == 1
+    assert "not inside a git repository" in result.output
 
 
-def test_main_saga_error_maps_to_exit_1(git_repo: Path, tmp_path, monkeypatch, capsys):
+def test_main_saga_error_maps_to_exit_1(git_repo: Path, tmp_path, monkeypatch):
     def boom(*a, **k):
         raise SagaError("no reviewable hunks")
 
     monkeypatch.setattr(cli, "generate", boom)
-    rc = cli.main(
-        ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
     )
-    assert rc == 1
-    assert "no reviewable hunks" in capsys.readouterr().err
+    assert result.exit_code == 1
+    assert "no reviewable hunks" in result.output
 
 
 def test_main_opens_browser_by_default(
@@ -132,13 +140,14 @@ def test_main_opens_browser_by_default(
     opened = []
     monkeypatch.setattr(cli.webbrowser, "open", lambda uri: opened.append(uri))
     out = tmp_path / "o.html"
-    rc = cli.main(["--repo", str(git_repo), "-o", str(out)])
-    assert rc == 0
+    result = runner.invoke(app, ["--repo", str(git_repo), "-o", str(out)])
+    assert result.exit_code == 0
     assert opened and opened[0].startswith("file://")
 
 
 def test_main_model_flag_is_passed_through(git_repo: Path, tmp_path, stub_pipeline):
-    cli.main(
+    runner.invoke(
+        app,
         [
             "--repo",
             str(git_repo),
@@ -147,6 +156,6 @@ def test_main_model_flag_is_passed_through(git_repo: Path, tmp_path, stub_pipeli
             "-o",
             str(tmp_path / "o.html"),
             "--no-open",
-        ]
+        ],
     )
     assert stub_pipeline["generate"]["model"] == "openai/gpt-4o"
