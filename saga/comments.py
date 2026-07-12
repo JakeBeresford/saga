@@ -37,15 +37,11 @@ def load_sidecar(path: Path) -> dict:
     """Read and validate a ``saga.comments.json`` sidecar.
 
     Raises ``SagaError`` with a reviewer-facing message on any malformed shape —
-    a missing file, bad JSON, or an inline comment lacking ``line``/``body``.
+    unreadable file, bad JSON, or an inline comment lacking ``line``/``body``.
+    Callers handle a *missing* sidecar themselves (it means "no comments yet").
     """
     try:
         raw = Path(path).read_text()
-    except FileNotFoundError:
-        raise SagaError(
-            f"no comments yet at {path} — author comments in the saga HTML "
-            'and click "Export comments" (or pass --comments PATH).'
-        ) from None
     except OSError as e:
         raise SagaError(f"could not read comments file {path}: {e}") from e
     try:
@@ -172,14 +168,17 @@ def _pr_info(repo_root: Path, branch: str) -> tuple[int, str]:
 
 def push(sidecar_path: Path, repo_root: Path, *, web: bool = False) -> int:
     """Post the sidecar's comments as a single pending review on the PR."""
-    sidecar = load_sidecar(sidecar_path)
-    branch = sidecar.get("branch")
-    if not branch:
-        raise SagaError("comments file is missing 'branch'; cannot locate the PR.")
+    path = Path(sidecar_path)
+    sidecar = load_sidecar(path) if path.exists() else {}
 
     payload = build_review_payload(sidecar)
     if not payload:
-        raise SagaError("no comments to push.")
+        print("No comments to push.", file=sys.stderr)
+        return 0
+
+    branch = sidecar.get("branch")
+    if not branch:
+        raise SagaError("comments file is missing 'branch'; cannot locate the PR.")
 
     pr_number, pr_url = _pr_info(repo_root, branch)
     result = _gh(
