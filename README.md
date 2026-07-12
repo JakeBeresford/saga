@@ -77,14 +77,16 @@ saga --base main --head my-feature -o saga.html
 
 ## As a Claude Code skill
 
-The `skills/` directory contains Claude Code skills so you can just say **"/saga"**
-(or "give me a walkthrough of this branch") inside Claude Code. To install it:
+The `skills/` directory contains two Claude Code skills. To install both:
 
 ```sh
 cp -R "$(pwd)/skills" ~/.claude/skills/saga
 ```
 
-The skill resolves the base/head refs and runs the script for you.
+- **`saga`** — say **"/saga"** (or "give me a walkthrough of this branch") to generate a
+  saga. It resolves the base/head refs and runs the tool for you.
+- **`saga-comments`** — say **"/saga-comments"** (or "address the saga comments") to read an
+  exported `saga.comments.json` and act on the reviewer's feedback in code.
 
 ## Reviewing: comments
 
