@@ -199,6 +199,8 @@
   display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px;
   background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 14px;
 }
+/* An explicit display defeats the `hidden` attribute's UA display:none — restore it. */
+.saga-file-cmt-panel[hidden] { display: none; }
 .saga-file-cmt-panel .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
 
 /* --- narrow screens: tighten the reader gutter (the 1000px max-width already
