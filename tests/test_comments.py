@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from saga.comments import build_review_payload, load_sidecar, read
+from saga.comments import build_review_payload, load_sidecar, push, read
 from saga.model import SagaError
 
 SIDECAR = {
@@ -98,18 +98,30 @@ def test_load_sidecar_reads_valid_json(tmp_path):
     assert load_sidecar(p)["branch"] == "feature"
 
 
-def test_load_sidecar_missing_file_says_no_comments_yet(tmp_path):
-    # push (human-run) surfaces the missing sidecar as friendly guidance.
-    with pytest.raises(SagaError, match="no comments yet"):
-        load_sidecar(tmp_path / "nope.json")
-
-
 def test_read_missing_file_emits_empty_json_not_an_error(tmp_path, capsys):
     # read (agent-facing) treats a missing sidecar as "no comments yet".
     rc = read(tmp_path / "nope.json")
     assert rc == 0
     data = json.loads(capsys.readouterr().out)
     assert data["files"] == {} and data["overall"] is None
+
+
+def test_push_missing_file_reports_no_comments(tmp_path, capsys):
+    # push (human-run) treats a missing sidecar as nothing to do, not an error.
+    rc = push(tmp_path / "nope.json", tmp_path)
+    assert rc == 0
+    assert "No comments to push" in capsys.readouterr().err
+
+
+def test_push_empty_sidecar_reports_no_comments(tmp_path, capsys):
+    # An exported-but-empty sidecar is also nothing to push.
+    p = tmp_path / "saga.comments.json"
+    p.write_text(
+        json.dumps({"branch": "x", "base": "main", "overall": "", "files": {}})
+    )
+    rc = push(p, tmp_path)
+    assert rc == 0
+    assert "No comments to push" in capsys.readouterr().err
 
 
 def test_load_sidecar_bad_json_raises(tmp_path):
