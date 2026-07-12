@@ -4,63 +4,67 @@
  * "a human can act here" (links, focus), and a strict three-light status system
  * — green (clear) · amber (attention) · red (deviation) — is reserved for the
  * agent's own state and never used as chrome.
+ *
+ * Every colour is a light-dark(light, dark) pair. The page follows the OS by
+ * default (color-scheme: light dark); the reader's toggle forces a scheme by
+ * stamping [data-theme] on <html>, which flips every token below at once.
  */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 
-  /* --- ink: layered near-black graphite with a faint cool cast --- */
-  --bg:            #0b0e13;   /* page canvas                         */
-  --surface:       #141922;   /* cards, panels, headers              */
-  --surface-2:     #1d2430;   /* raised: buttons, inputs, code       */
-  --surface-accent:#16232b;   /* cyan-tinted raise (own messages)    */
-  --hover:         rgba(120,150,180,0.07);
+  /* --- ink: layered graphite (dark) / cool near-white (light) --- */
+  --bg:            light-dark(#f4f6f9, #0b0e13);   /* page canvas            */
+  --surface:       light-dark(#ffffff, #141922);   /* cards, panels, headers */
+  --surface-2:     light-dark(#eef1f5, #1d2430);   /* raised: buttons, code  */
+  --surface-accent:light-dark(#e6f3f8, #16232b);   /* cyan-tinted raise      */
+  --hover:         light-dark(rgba(20,40,70,0.05), rgba(120,150,180,0.07));
 
   /* --- lines --- */
-  --line:      #2a323f;       /* default border                      */
-  --line-soft: #20262f;       /* quiet divider                       */
+  --line:      light-dark(#d5dbe3, #2a323f);   /* default border          */
+  --line-soft: light-dark(#e6eaef, #20262f);   /* quiet divider           */
 
   /* --- text --- */
-  --text:       #e7ecf3;      /* primary                             */
-  --text-dim:   #9aa7b8;      /* secondary / labels                  */
-  --text-faint: #5f6b7d;      /* tertiary / line numbers, separators */
+  --text:       light-dark(#1a1f28, #e7ecf3);  /* primary                 */
+  --text-dim:   light-dark(#55606f, #9aa7b8);  /* secondary / labels      */
+  --text-faint: light-dark(#8a94a3, #5f6b7d);  /* tertiary / line numbers */
 
   /* --- accent: signal cyan = "a human can act here" --- */
-  --accent:        #57c7e3;
-  --accent-bright: #8ad9ef;   /* hover / brighter link               */
-  --accent-solid:  #2b93b3;   /* solid fills (primary button)        */
-  --accent-ink:    #04141b;   /* text on a solid accent fill         */
-  --accent-tint:   rgba(87,199,227,0.12);
-  --focus-ring:    rgba(87,199,227,0.40);
+  --accent:        light-dark(#0e7490, #57c7e3);
+  --accent-bright: light-dark(#0b5c72, #8ad9ef);   /* hover / brighter link       */
+  --accent-solid:  light-dark(#1592b5, #2b93b3);   /* solid fills (primary button)*/
+  --accent-ink:    light-dark(#ffffff, #04141b);   /* text on a solid accent fill */
+  --accent-tint:   light-dark(rgba(14,116,144,0.10), rgba(87,199,227,0.12));
+  --focus-ring:    light-dark(rgba(14,116,144,0.45), rgba(87,199,227,0.40));
 
   /* --- status lights (agent state only) --- */
-  --ok:         #4ec98a;      /* clear                               */
-  --ok-bright:  #7ee7b0;
-  --ok-solid:   #2f9e63;
-  --ok-ink:     #04140c;
-  --ok-tint:    rgba(78,201,138,0.15);
+  --ok:         light-dark(#1a7f43, #4ec98a);  /* clear                   */
+  --ok-bright:  light-dark(#146b39, #7ee7b0);
+  --ok-solid:   light-dark(#1a7f43, #2f9e63);
+  --ok-ink:     light-dark(#ffffff, #04140c);
+  --ok-tint:    light-dark(rgba(26,127,67,0.12), rgba(78,201,138,0.15));
 
-  --warn:       #e0a83e;      /* attention                           */
-  --warn-solid: #c78a2a;
-  --warn-ink:   #1b1200;      /* text on a solid amber fill          */
-  --warn-tint:  rgba(224,168,62,0.15);
+  --warn:       light-dark(#9a6700, #e0a83e);  /* attention               */
+  --warn-solid: light-dark(#8a5d00, #c78a2a);
+  --warn-ink:   light-dark(#ffffff, #1b1200);  /* text on a solid amber fill */
+  --warn-tint:  light-dark(rgba(154,103,0,0.12), rgba(224,168,62,0.15));
 
-  --danger:        #f2685f;   /* deviation                           */
-  --danger-bright: #ff9c94;
-  --danger-ink:    #ffe1de;   /* text on a solid/loud red fill       */
-  --danger-tint:   rgba(242,104,95,0.14);
-  --danger-loud:   #b62324;   /* loud deviation fill                 */
-  --danger-loud-bg:#3d1518;   /* loud deviation panel bg             */
-  --danger-loud-border:#f2685f;
+  --danger:        light-dark(#c62828, #f2685f);   /* deviation               */
+  --danger-bright: light-dark(#a51f1f, #ff9c94);
+  --danger-ink:    light-dark(#5c1512, #ffe1de);   /* text on a loud red fill */
+  --danger-tint:   light-dark(rgba(198,40,40,0.10), rgba(242,104,95,0.14));
+  --danger-loud:   light-dark(#fbe3e1, #b62324);   /* loud deviation fill     */
+  --danger-loud-bg:light-dark(#fdecea, #3d1518);   /* loud deviation panel bg */
+  --danger-loud-border:light-dark(#c62828, #f2685f);
 
   /* --- diff shading (derived from status hues) --- */
-  --diff-add-bg:     rgba(78,201,138,0.10);
-  --diff-add-strong: rgba(78,201,138,0.30);
-  --diff-add-gutter: rgba(78,201,138,0.15);
-  --diff-del-bg:     rgba(242,104,95,0.10);
-  --diff-del-strong: rgba(242,104,95,0.30);
-  --diff-del-gutter: rgba(242,104,95,0.15);
-  --diff-info-bg:    rgba(87,199,227,0.10);
+  --diff-add-bg:     light-dark(rgba(26,127,67,0.12), rgba(78,201,138,0.10));
+  --diff-add-strong: light-dark(rgba(26,127,67,0.25), rgba(78,201,138,0.30));
+  --diff-add-gutter: light-dark(rgba(26,127,67,0.18), rgba(78,201,138,0.15));
+  --diff-del-bg:     light-dark(rgba(198,40,40,0.10), rgba(242,104,95,0.10));
+  --diff-del-strong: light-dark(rgba(198,40,40,0.22), rgba(242,104,95,0.30));
+  --diff-del-gutter: light-dark(rgba(198,40,40,0.15), rgba(242,104,95,0.15));
+  --diff-info-bg:    light-dark(rgba(14,116,144,0.10), rgba(87,199,227,0.10));
 
   /* --- type --- */
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -93,14 +97,20 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  --shadow:    0 8px 24px rgba(0,0,0,0.35);
-  --shadow-up: 0 -4px 12px rgba(0,0,0,0.30);
+  --shadow:    light-dark(0 8px 24px rgba(20,40,70,0.12), 0 8px 24px rgba(0,0,0,0.35));
+  --shadow-up: light-dark(0 -4px 12px rgba(20,40,70,0.10), 0 -4px 12px rgba(0,0,0,0.30));
 
   --transition: 120ms ease;
 
   /* the status rail defaults to accent; pages recolor it via a modifier */
   --rail: var(--accent);
 }
+
+/* The reader's toggle forces a scheme; the light-dark() tokens above then
+   resolve to it. With no explicit choice, `color-scheme: light dark` follows
+   the OS. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
 
 /* --- reset shared by every page --- */
 * { box-sizing: border-box; }

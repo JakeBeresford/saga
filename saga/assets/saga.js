@@ -21,6 +21,39 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // --- theme (light/dark) --------------------------------------------
+  // Follows the OS unless the reader forces a choice via the header toggle,
+  // stored globally (not per-saga) so the preference sticks across files.
+
+  const THEME_KEY = 'saga-theme';
+
+  function effectiveTheme() {
+    const forced = document.documentElement.getAttribute('data-theme');
+    if (forced === 'light' || forced === 'dark') return forced;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? 'light' : 'dark';
+  }
+
+  function setThemeIcon() {
+    const btn = $('saga-theme');
+    if (btn) btn.textContent = effectiveTheme() === 'dark' ? '☀' : '☾';
+  }
+
+  function initTheme() {
+    const btn = $('saga-theme');
+    if (!btn) return;
+    setThemeIcon();
+    btn.addEventListener('click', () => {
+      const next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+      setThemeIcon();
+      // Re-draw the open chapter so diff2html's own colour-scheme class
+      // (and the residual diff colours our CSS doesn't override) match.
+      if (!$('saga-reader').hidden) openChapter(current);
+    });
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -269,6 +302,7 @@
   function show() {
     chapters = data.chapters || [];
     comments = loadComments();
+    initTheme();
     renderVerdict(data.verdict);
     renderTOC();
   }
@@ -410,6 +444,7 @@
       container.innerHTML = '<div class="saga-empty">No diff hunks in this chapter.</div>';
       return;
     }
+    CONFIG.colorScheme = effectiveTheme();
     const ui = new Diff2HtmlUI(container, ch.diff, CONFIG);
     ui.draw();
     ui.highlightCode();

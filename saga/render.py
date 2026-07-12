@@ -108,6 +108,13 @@ def render(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
+<script>
+// Apply the saved theme before first paint so there is no flash.
+try {{
+  var t = localStorage.getItem('saga-theme');
+  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+}} catch (e) {{}}
+</script>
 <style>
 {styles}
 </style>
@@ -115,6 +122,8 @@ def render(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> str:
 <body>
 <div class="saga-rail" id="saga-rail"></div>
 <div class="header">
+  <button id="saga-theme" class="saga-theme-toggle" type="button"
+          aria-label="Toggle light or dark theme" title="Toggle theme"></button>
   <nav class="saga-crumbs">
     <span class="saga-crumb-current">Saga</span>
     <span class="saga-crumb-sep">&rsaquo;</span>

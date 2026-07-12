@@ -1,6 +1,18 @@
 /* PR saga view — chapter-based review. Consumes the shared design
    tokens (tokens.css); status colours come from the instrument-ink lights. */
 
+/* light/dark toggle, pinned to the top-right of the header */
+.saga-theme-toggle {
+  position: absolute; top: 16px; right: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  color: var(--text-dim); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  transition: border-color var(--transition), color var(--transition);
+}
+.saga-theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
 .saga-crumbs { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 10px; }
 .saga-crumbs a { color: var(--accent); text-decoration: none; }
 .saga-crumbs a:hover { color: var(--accent-bright); text-decoration: underline; }
@@ -208,4 +220,5 @@
 @media (max-width: 640px) {
   #saga-notice, .saga-toc, .saga-reader { padding-left: 16px; padding-right: 16px; }
   .saga-chapter-title { font-size: var(--fs-lg); }
+  .saga-theme-toggle { top: 14px; right: 16px; }
 }
