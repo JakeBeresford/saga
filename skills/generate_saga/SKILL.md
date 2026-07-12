@@ -46,6 +46,5 @@ run it.
 
 ## Notes
 
-- No commenting in this version — it is a read-only guided view of the diff.
 - If generation fails (e.g. empty diff, missing API key, coverage gap), relay the
   error message to the user; it is written to stderr.

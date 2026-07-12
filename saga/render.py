@@ -113,7 +113,7 @@ def render(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> str:
 </style>
 </head>
 <body>
-<div class="otto-rail" id="otto-rail"></div>
+<div class="saga-rail" id="saga-rail"></div>
 <div class="header">
   <nav class="saga-crumbs">
     <span class="saga-crumb-current">Saga</span>

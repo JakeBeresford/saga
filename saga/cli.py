@@ -26,9 +26,26 @@ from .render import render
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "comments":
+        from .comments import comments_main
+
+        return comments_main(argv[1:])
+
     parser = argparse.ArgumentParser(
         prog="saga",
         description="Generate a self-contained PR saga as static HTML.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "subcommands:\n"
+            "  saga comments push   post review comments to the PR "
+            "as a pending GitHub review\n"
+            "  saga comments read   print review comments as JSON "
+            "(for a coding agent)\n"
+            "\n"
+            "Run `saga comments --help` for details."
+        ),
     )
     parser.add_argument("--base", default="main", help="base ref (default: main)")
     parser.add_argument(

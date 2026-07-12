@@ -77,14 +77,40 @@ saga --base main --head my-feature -o saga.html
 
 ## As a Claude Code skill
 
-The `skills/` directory contains Claude Code skills so you can just say **"/saga"**
-(or "give me a walkthrough of this branch") inside Claude Code. To install it:
+The `skills/` directory contains two Claude Code skills. To install both:
 
 ```sh
 cp -R "$(pwd)/skills" ~/.claude/skills/saga
 ```
 
-The skill resolves the base/head refs and runs the script for you.
+- **`saga`** — say **"/saga"** (or "give me a walkthrough of this branch") to generate a
+  saga. It resolves the base/head refs and runs the tool for you.
+- **`saga-comments`** — say **"/saga-comments"** (or "address the saga comments") to read an
+  exported `saga.comments.json` and act on the reviewer's feedback in code.
+
+## Reviewing: comments
+
+The saga page is also a lightweight review surface. Open `saga.html` and leave three
+kinds of comments — **inline** (click a line's number in any chapter's diff), **per-file**
+(the "💬 File comment" control in each file header), and one **overall** review comment
+(the box at the top of the Chapters list). Comments are drafted in your browser's
+`localStorage`, so they survive a reload.
+
+When you're done, click **Export comments** to download a `saga.comments.json` sidecar next
+to the HTML. Two commands consume it:
+
+```sh
+# Post everything as a single PENDING review on the PR (you submit it on GitHub).
+saga comments push --comments saga.comments.json
+
+# Emit the comments as JSON on stdout — for a coding agent to act on.
+saga comments read --comments saga.comments.json
+```
+
+`push` uses the `gh` CLI: it finds the open PR for the sidecar's branch and creates one
+pending review (inline → line comments, per-file → a note anchored to the file's first
+changed line, overall → the review body). Nothing is submitted until you review and submit
+it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
 
 ## How it works
 
@@ -98,5 +124,4 @@ The skill resolves the base/head refs and runs the script for you.
 
 ## Not included (yet)
 
-- Inline commenting on the diff (the page is read-only).
 - A GitHub Action to generate on PRs.

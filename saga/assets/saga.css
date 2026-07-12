@@ -137,6 +137,72 @@
 .saga-chapter-diff { margin-top: 8px; }
 .saga-empty { color: var(--text-dim); font-size: var(--fs-base); padding: 16px 0; }
 
+/* --- comments: overall review, inline threads, per-file notes --- */
+
+.saga-review {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 20px;
+}
+.saga-review .saga-toc-title { margin-top: 0; }
+.saga-review-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.saga-cmt-count { color: var(--text-dim); font-size: var(--fs-sm); font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
+.saga-review-actions .saga-btn { margin-left: auto; }
+
+.saga-cmt-input {
+  display: block; width: 100%; box-sizing: border-box; resize: vertical;
+  font: inherit; font-size: var(--fs-sm); line-height: 1.5;
+  color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px;
+}
+.saga-cmt-input:focus { outline: none; border-color: var(--accent); }
+.saga-overall { min-height: 72px; }
+
+/* Line-number gutter becomes a comment target. */
+.saga-linenum { cursor: pointer; }
+.saga-linenum:hover { background: var(--accent-tint) !important; }
+
+/* Injected comment row spanning the diff table's columns. */
+.saga-cmt-row > .saga-cmt-cell {
+  background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  padding: 10px 14px; font-family: var(--font-sans); white-space: normal;
+}
+.saga-cmt {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 8px 10px; margin-bottom: 8px;
+}
+.saga-cmt-body { flex: 1; color: var(--text); font-size: var(--fs-sm); line-height: 1.5; }
+.saga-cmt-body p { margin: 0 0 6px; }
+.saga-cmt-body p:last-child { margin-bottom: 0; }
+.saga-cmt-body code {
+  background: var(--surface); padding: 1px 5px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--fs-xs);
+}
+.saga-cmt-del {
+  font: inherit; font-size: var(--fs-xs); cursor: pointer; line-height: 1;
+  color: var(--text-faint); background: none; border: none; padding: 2px 4px;
+}
+.saga-cmt-del:hover { color: var(--danger); }
+
+.saga-cmt-composer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.saga-cmt-composer .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
+.saga-cmt-composer .saga-btn { flex: 0 0 auto; }
+
+/* Per-file comment control in the diff2html file header. */
+.saga-file-cmt-btn {
+  float: right; white-space: nowrap; font: inherit; font-size: var(--fs-xs); cursor: pointer;
+  color: var(--text-dim); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 2px 8px;
+}
+.saga-file-cmt-btn:hover { border-color: var(--accent); color: var(--text); }
+.saga-file-cmt-panel {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px;
+  background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 14px;
+}
+/* An explicit display defeats the `hidden` attribute's UA display:none — restore it. */
+.saga-file-cmt-panel[hidden] { display: none; }
+.saga-file-cmt-panel .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
+
 /* --- narrow screens: tighten the reader gutter (the 1000px max-width already
    goes fluid below that width) and shrink the chapter title. --- */
 @media (max-width: 640px) {

@@ -121,11 +121,11 @@
  * the most important state present:
  * accent (idle) · green (clear) · amber (attention) · red (deviation).
  */
-.otto-rail {
+.saga-rail {
   height: 2px;
   background: var(--rail);
   box-shadow: 0 0 12px 0 color-mix(in srgb, var(--rail) 55%, transparent);
 }
-.otto-rail-ok   { --rail: var(--ok); }
-.otto-rail-attn { --rail: var(--warn); }
-.otto-rail-dev  { --rail: var(--danger); }
+.saga-rail-ok   { --rail: var(--ok); }
+.saga-rail-attn { --rail: var(--warn); }
+.saga-rail-dev  { --rail: var(--danger); }
