@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from saga.comments import build_review_payload, load_sidecar
+from saga.comments import build_review_payload, load_sidecar, read
 from saga.model import SagaError
 
 SIDECAR = {
@@ -98,9 +98,18 @@ def test_load_sidecar_reads_valid_json(tmp_path):
     assert load_sidecar(p)["branch"] == "feature"
 
 
-def test_load_sidecar_missing_file_raises(tmp_path):
-    with pytest.raises(SagaError, match="could not read"):
+def test_load_sidecar_missing_file_says_no_comments_yet(tmp_path):
+    # push (human-run) surfaces the missing sidecar as friendly guidance.
+    with pytest.raises(SagaError, match="no comments yet"):
         load_sidecar(tmp_path / "nope.json")
+
+
+def test_read_missing_file_emits_empty_json_not_an_error(tmp_path, capsys):
+    # read (agent-facing) treats a missing sidecar as "no comments yet".
+    rc = read(tmp_path / "nope.json")
+    assert rc == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["files"] == {} and data["overall"] is None
 
 
 def test_load_sidecar_bad_json_raises(tmp_path):

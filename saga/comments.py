@@ -41,6 +41,11 @@ def load_sidecar(path: Path) -> dict:
     """
     try:
         raw = Path(path).read_text()
+    except FileNotFoundError:
+        raise SagaError(
+            f"no comments yet at {path} — author comments in the saga HTML "
+            'and click "Export comments" (or pass --comments PATH).'
+        ) from None
     except OSError as e:
         raise SagaError(f"could not read comments file {path}: {e}") from e
     try:
@@ -203,8 +208,14 @@ def push(sidecar_path: Path, repo_root: Path, *, web: bool = False) -> int:
 
 
 def read(sidecar_path: Path) -> int:
-    """Print the sidecar's comments as normalized JSON on stdout."""
-    sidecar = load_sidecar(sidecar_path)
+    """Print the sidecar's comments as normalized JSON on stdout.
+
+    This command feeds a coding agent, so a missing sidecar is not an error —
+    "no comments authored yet" is reported as a valid, empty JSON document. A
+    sidecar that exists but is malformed still errors (that is a real problem).
+    """
+    path = Path(sidecar_path)
+    sidecar = load_sidecar(path) if path.exists() else {}
     print(json.dumps(_normalize_for_agent(sidecar), indent=2, ensure_ascii=False))
     return 0
 
