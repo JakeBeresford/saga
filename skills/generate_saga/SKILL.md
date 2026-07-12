@@ -48,5 +48,3 @@ run it.
 
 - If generation fails (e.g. empty diff, missing API key, coverage gap), relay the
   error message to the user; it is written to stderr.
-- Reading a reviewer's comments back is a separate skill (`saga-comments`), which runs
-  `saga comments read` and acts on the exported `saga.comments.json`.
