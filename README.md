@@ -9,6 +9,8 @@ losing the thread.
 The output is one HTML file with everything inlined (diff2html, syntax highlighting,
 the data). Open it offline, email it, commit it, or drop it on any static host.
 
+[**See an example saga**](https://jakeberesford.github.io/saga/example.html).
+
 ## Requirements
 
 - Python 3.11+

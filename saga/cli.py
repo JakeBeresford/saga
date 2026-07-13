@@ -36,9 +36,7 @@ app.add_typer(comments_app, name="comments")
 def main(
     ctx: typer.Context,
     base: str = typer.Option("main", help="base ref (default: main)"),
-    head: str = typer.Option(
-        "HEAD", help="head ref to walk through (default: HEAD)"
-    ),
+    head: str = typer.Option("HEAD", help="head ref to walk through (default: HEAD)"),
     intent: Path | None = typer.Option(
         None, help="optional path to a plan/spec describing the change's intent"
     ),
@@ -86,9 +84,7 @@ def main(
     resolved_head = current_branch(repo_root) if head == "HEAD" else head
     typer.echo(f"Generating saga for {base}...{resolved_head} …", err=True)
     try:
-        saga = generate(
-            repo_root, base, resolved_head, model=model, intent=intent_text
-        )
+        saga = generate(repo_root, base, resolved_head, model=model, intent=intent_text)
         html = render(repo_root, saga)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
