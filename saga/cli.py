@@ -2,7 +2,8 @@
 
 Installs a ``saga`` command usable from any repo. Needs Python 3, git, and
 an API key for the chosen provider (``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY`` /
-``OPENROUTER_API_KEY``). Run from inside the repo you want to review:
+``OPENROUTER_API_KEY``) — or, with a ``local/`` model, a running Ollama or
+LM Studio server and no key. Run from inside the repo you want to review:
 
     saga --base main --head my-feature -o saga.html --open
 
@@ -45,7 +46,8 @@ def main(
         envvar="SAGA_MODEL",
         help=(
             "provider/model to use, e.g. anthropic/claude-opus-4-8, openai/gpt-4o, "
-            "openrouter/anthropic/claude-3.5-sonnet "
+            "openrouter/anthropic/claude-3.5-sonnet, local/qwen2.5-coder:14b "
+            "(local/ targets Ollama or LM Studio; see $SAGA_LOCAL_BASE_URL) "
             "(default: $SAGA_MODEL or anthropic/claude-opus-4-8)"
         ),
     ),

@@ -10,6 +10,10 @@ Provider-agnostic: the model is chosen by a ``provider/model`` string (e.g.
 ``openrouter/anthropic/claude-3.5-sonnet``) and dispatched through ``instructor``.
 The API key is read from the provider's standard environment variable
 (``ANTHROPIC_API_KEY`` / ``OPENAI_API_KEY`` / ``OPENROUTER_API_KEY``).
+
+The ``local/`` prefix targets any OpenAI-compatible local server — Ollama or
+LM Studio — with no API key. It defaults to Ollama's endpoint; point it at a
+different server (e.g. LM Studio on port 1234) with ``$SAGA_LOCAL_BASE_URL``.
 """
 
 from __future__ import annotations
@@ -33,6 +37,9 @@ from .model import (
 
 _MAX_TOKENS = 16000
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Ollama's OpenAI-compatible endpoint; override with $SAGA_LOCAL_BASE_URL (e.g.
+# http://localhost:1234/v1 for LM Studio).
+_LOCAL_DEFAULT_BASE_URL = "http://localhost:11434/v1"
 _PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "saga.md"
 
 
@@ -113,6 +120,9 @@ def _build_client(model: str) -> instructor.Instructor:
 
     OpenRouter is OpenAI-compatible, so it needs an explicit base URL and its own
     key; Anthropic and OpenAI resolve their keys from the SDK's standard env vars.
+    ``local`` targets an OpenAI-compatible local server (Ollama/LM Studio) via the
+    OpenAI SDK — no key, and forced JSON mode since local models' tool-calling is
+    unreliable and saga depends on schema-valid output.
     """
     provider = model.split("/", 1)[0]
     try:
@@ -122,6 +132,15 @@ def _build_client(model: str) -> instructor.Instructor:
                 raise SagaError("OPENROUTER_API_KEY is not set.")
             return instructor.from_provider(
                 model, base_url=_OPENROUTER_BASE_URL, api_key=key
+            )
+        if provider == "local":
+            model_name = model.split("/", 1)[1]
+            base_url = os.environ.get("SAGA_LOCAL_BASE_URL", _LOCAL_DEFAULT_BASE_URL)
+            return instructor.from_provider(
+                f"openai/{model_name}",
+                base_url=base_url,
+                api_key="local",  # unused by the local server, but must be non-empty
+                mode=instructor.Mode.JSON,
             )
         return instructor.from_provider(model)
     except SagaError:
