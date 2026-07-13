@@ -78,6 +78,7 @@ the matching API key:
 | OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`     |
 | OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY` |
 | Local      | `local/qwen2.5-coder:14b`                | none                 |
+| Claude CLI | `claude-cli` or `claude-cli/sonnet`      | none (Claude Code login) |
 
 ```sh
 export SAGA_MODEL=openai/gpt-4o
@@ -106,6 +107,25 @@ Two caveats: saga requires schema-valid JSON output, so use an instruction-tuned
 model that follows JSON prompting reliably; and the full diff plus a 16k output
 budget can exceed a small model's context window — prefer larger-context models
 and expect weaker narration than a frontier hosted model.
+
+### Claude Code CLI (no API key)
+
+If you don't have an Anthropic API key but you are logged into the
+[Claude Code](https://claude.com/claude-code) CLI — for example with a Claude
+Pro/Max subscription — the `claude-cli` model routes generation through
+`claude -p` instead of the API, reusing that login:
+
+```sh
+saga --model claude-cli --base main --head my-feature
+saga --model claude-cli/sonnet --base main --head my-feature   # pin a model
+```
+
+This shells out to the `claude` binary (which must be on your `PATH` and logged
+in), constrains its output to saga's schema via `--json-schema`, and runs it as
+a plain transform with no tools. `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN`
+are dropped for the subprocess so it uses your Claude Code login rather than
+silently billing an API key. It is slower than a direct API call (Claude Code
+boots an agent per run) and subject to your subscription's usage limits.
 
 ## As a Claude Code skill
 
