@@ -267,9 +267,7 @@ def test_claude_cli_bare_model_omits_model_flag(monkeypatch):
 
 def test_claude_cli_tolerates_leading_warning_line(monkeypatch):
     # Claude Code prints a stray warning before the JSON envelope on some setups.
-    stdout = "⚠ connectors disabled\n" + _envelope(
-        structured_output=_ENVELOPE_CHAPTERS
-    )
+    stdout = "⚠ connectors disabled\n" + _envelope(structured_output=_ENVELOPE_CHAPTERS)
     _fake_claude(monkeypatch, stdout=stdout)
     result = _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
     assert result.chapters[0].id == "c1"
