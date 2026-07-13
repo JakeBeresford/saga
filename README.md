@@ -99,7 +99,8 @@ kinds of comments — **inline** (click a line's number in any chapter's diff), 
 `localStorage`, so they survive a reload.
 
 When you're done, click **Export comments** to download a `saga.comments.json` sidecar next
-to the HTML. Two commands consume it:
+to the HTML. (Export is disabled in the [hosted example](https://jakeberesford.github.io/saga/example.html)
+so it never writes a file — every other part of the review UX works.) Two commands consume it:
 
 ```sh
 # Post everything as a single PENDING review on the PR (you submit it on GitHub).
@@ -126,4 +127,5 @@ it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
 
 ## Not included (yet)
 
-- A GitHub Action to generate on PRs.
+- Support for Local LLMs via ollama / LM Studio
+- A GitHub Action to auto-generate saga on PRs.

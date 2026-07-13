@@ -780,36 +780,14 @@ window.__sagaData = {"branch": "tui-gui", "base": "main", "verdict": {"chapters"
   }
 
   function exportComments() {
-    const files = {};
-    Object.keys(comments.files).forEach((p) => {
-      const e = comments.files[p];
-      const inline = (e.inline || []).filter((c) => c.body && c.body.trim());
-      const fc = (e.file_comment || '').trim();
-      if (!inline.length && !fc) return;
-      const out = {};
-      if (fc) {
-        out.file_comment = fc;
-        if (e.file_anchor) out.file_anchor = e.file_anchor;
-      }
-      if (inline.length) out.inline = inline;
-      files[p] = out;
-    });
-    const sidecar = {
-      branch: data.branch || '',
-      base: data.base || '',
-      generated_at: new Date().toISOString(),
-      overall: (comments.overall || '').trim(),
-      files: files,
-    };
-    const blob = new Blob([JSON.stringify(sidecar, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'saga.comments.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // Hosted demo: export is disabled so the example never writes a
+    // saga.comments.json sidecar. The button still confirms visually.
+    const btn = $('saga-export');
+    if (!btn) return;
+    const label = btn.textContent;
+    btn.textContent = 'Exported ✓';
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 1500);
   }
 
   // --- entry ----------------------------------------------------------
