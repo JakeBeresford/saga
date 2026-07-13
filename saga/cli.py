@@ -17,6 +17,7 @@ Pass --intent PATH to give the model a plan/spec for richer, plan-aware narratio
 from __future__ import annotations
 
 import webbrowser
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import typer
@@ -35,9 +36,22 @@ app = typer.Typer(
 app.add_typer(comments_app, name="comments")
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"saga {package_version('saga-cli')}")
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        help="show the installed saga version and exit",
+        is_eager=True,
+        callback=_version_callback,
+    ),
     base: str = typer.Option("main", help="base ref (default: main)"),
     head: str = typer.Option("HEAD", help="head ref to walk through (default: HEAD)"),
     intent: Path | None = typer.Option(
