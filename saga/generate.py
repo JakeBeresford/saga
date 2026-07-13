@@ -14,11 +14,18 @@ The API key is read from the provider's standard environment variable
 The ``local/`` prefix targets any OpenAI-compatible local server — Ollama or
 LM Studio — with no API key. It defaults to Ollama's endpoint; point it at a
 different server (e.g. LM Studio on port 1234) with ``$SAGA_LOCAL_BASE_URL``.
+
+The ``claude-cli`` provider shells out to a local Claude Code CLI (``claude -p``)
+instead of the Anthropic SDK, so it uses whatever the user's Claude Code is
+logged in with — including a Claude Pro/Max subscription, with no API key. The
+saga schema is enforced via ``claude``'s ``--json-schema`` flag.
 """
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Literal
 
@@ -40,6 +47,8 @@ _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Ollama's OpenAI-compatible endpoint; override with $SAGA_LOCAL_BASE_URL (e.g.
 # http://localhost:1234/v1 for LM Studio).
 _LOCAL_DEFAULT_BASE_URL = "http://localhost:11434/v1"
+# Claude Code boot + generation for a full saga can take a while; be generous.
+_CLAUDE_CLI_TIMEOUT = 300
 _PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "saga.md"
 
 
@@ -149,6 +158,93 @@ def _build_client(model: str) -> instructor.Instructor:
         raise SagaError(f"Could not initialize model {model!r}: {e}") from e
 
 
+def _generate_via_claude_cli(
+    model: str, system_prompt: str, user_message: str
+) -> _SagaOut:
+    """Generate a saga through a local Claude Code CLI (``claude -p``).
+
+    Unlike the ``anthropic/`` provider (which needs ``ANTHROPIC_API_KEY``), this
+    runs the ``claude`` binary and reuses its stored login, so a user with only a
+    Claude Pro/Max subscription can generate sagas. Output is constrained to the
+    saga schema with ``--json-schema`` and read back from the JSON envelope's
+    ``structured_output`` field. ``model`` is ``claude-cli`` (Claude Code's
+    default model) or ``claude-cli/<alias>`` (e.g. ``claude-cli/sonnet``).
+    """
+    parts = model.split("/", 1)
+    cmd = [
+        "claude",
+        "-p",
+        "--output-format",
+        "json",
+        # Replace Claude Code's default system prompt with saga's — a focused,
+        # tool-free transform rather than a coding agent.
+        "--system-prompt",
+        system_prompt,
+        "--allowedTools",
+        "",  # no tools: prompt in, schema-valid JSON out
+        "--json-schema",
+        json.dumps(_SagaOut.model_json_schema()),
+    ]
+    if len(parts) == 2 and parts[1]:
+        cmd += ["--model", parts[1]]
+
+    # ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN outrank the Claude Code login, so a
+    # stray key would silently bill the API instead of the subscription this
+    # provider exists to use. Drop them for the subprocess.
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    }
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=user_message,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=_CLAUDE_CLI_TIMEOUT,
+        )
+    except FileNotFoundError as e:
+        raise SagaError(
+            "claude CLI not found. Install Claude Code and log in "
+            "(https://claude.com/claude-code), or choose a different --model."
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise SagaError(
+            f"claude CLI timed out after {_CLAUDE_CLI_TIMEOUT}s."
+        ) from e
+
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout).strip()
+        raise SagaError(f"claude CLI failed (exit {proc.returncode}): {detail}")
+
+    # stdout may carry a leading warning line before the JSON object; start at the
+    # first brace.
+    text = proc.stdout.strip()
+    start = text.find("{")
+    if start == -1:
+        raise SagaError(f"claude CLI returned no JSON:\n{text[:500]}")
+    try:
+        envelope = json.loads(text[start:])
+    except json.JSONDecodeError as e:
+        raise SagaError(f"could not parse claude CLI output: {e}") from e
+
+    if envelope.get("is_error"):
+        raise SagaError(f"claude CLI reported an error: {envelope.get('result')}")
+    structured = envelope.get("structured_output")
+    if structured is None:
+        raise SagaError(
+            "claude CLI returned no structured_output — the model did not "
+            "produce schema-valid output."
+        )
+    try:
+        return _SagaOut.model_validate(structured)
+    except Exception as e:
+        raise SagaError(f"claude CLI output did not match the saga schema: {e}") from e
+
+
 def generate(
     repo_root: Path,
     base: str,
@@ -167,28 +263,34 @@ def generate(
     if not hunks:
         raise SagaError("No reviewable hunks in this change set.")
 
-    client = _build_client(model)
+    provider = model.split("/", 1)[0]
     system_prompt = _PROMPT_PATH.read_text()
-    kwargs: dict = {}
-    if model.split("/", 1)[0] == "openrouter":
-        # Ask OpenRouter to route only to providers that support the params we
-        # send (structured output), so schema enforcement is honored.
-        kwargs["extra_body"] = {"provider": {"require_parameters": True}}
+    user_message = _build_message(diff, hunks, intent)
 
-    try:
-        result: _SagaOut = client.create(
-            response_model=_SagaOut,
-            max_tokens=_MAX_TOKENS,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": _build_message(diff, hunks, intent)},
-            ],
-            **kwargs,
-        )
-    except SagaError:
-        raise
-    except Exception as e:
-        raise SagaError(f"Saga generation failed: {e}") from e
+    if provider == "claude-cli":
+        result = _generate_via_claude_cli(model, system_prompt, user_message)
+    else:
+        client = _build_client(model)
+        kwargs: dict = {}
+        if provider == "openrouter":
+            # Ask OpenRouter to route only to providers that support the params we
+            # send (structured output), so schema enforcement is honored.
+            kwargs["extra_body"] = {"provider": {"require_parameters": True}}
+
+        try:
+            result: _SagaOut = client.create(
+                response_model=_SagaOut,
+                max_tokens=_MAX_TOKENS,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                **kwargs,
+            )
+        except SagaError:
+            raise
+        except Exception as e:
+            raise SagaError(f"Saga generation failed: {e}") from e
 
     chapters = [_to_chapter(c) for c in result.chapters]
     validate_coverage(chapters, hunks)

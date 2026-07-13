@@ -9,7 +9,9 @@ Re-record with a real key via:  SAGA_RECORD=1 ANTHROPIC_API_KEY=... pytest
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -18,7 +20,9 @@ from saga.generate import (
     _build_client,
     _build_message,
     _ChapterOut,
+    _generate_via_claude_cli,
     _QAOut,
+    _SagaOut,
     _to_chapter,
     generate,
     labeled_diff,
@@ -190,3 +194,128 @@ def test_cassette_is_scrubbed():
     text = cassette.read_text()
     assert "sk-ant-" not in text
     assert "REDACTED" in text
+
+
+# ---------------------------------------------------------------------------
+# claude-cli provider (subprocess out to `claude -p`), no network / no binary
+# ---------------------------------------------------------------------------
+
+_ENVELOPE_CHAPTERS = {
+    "chapters": [
+        {"id": "c1", "title": "T", "summary": "S", "narration": "N", "hunks": ["h0"]}
+    ]
+}
+
+
+def _envelope(**fields) -> str:
+    """Serialize a `claude -p --output-format json` envelope for stubbed stdout."""
+    return json.dumps(fields)
+
+
+def _fake_claude(monkeypatch, *, stdout: str, returncode: int = 0) -> dict:
+    """Patch subprocess.run to skip the real binary and record how it was called."""
+    import saga.generate as gen
+
+    captured: dict = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(cmd, returncode, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(gen.subprocess, "run", fake_run)
+    return captured
+
+
+def test_claude_cli_parses_structured_output(monkeypatch):
+    stdout = _envelope(is_error=False, structured_output=_ENVELOPE_CHAPTERS)
+    _fake_claude(monkeypatch, stdout=stdout)
+    result = _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+    assert result.chapters[0].id == "c1"
+    assert result.chapters[0].hunks == ["h0"]
+
+
+def test_claude_cli_command_pins_model_and_scrubs_key(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-should-be-dropped")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "tok-should-be-dropped")
+    captured = _fake_claude(
+        monkeypatch, stdout=_envelope(structured_output=_ENVELOPE_CHAPTERS)
+    )
+
+    _generate_via_claude_cli("claude-cli/sonnet", "sys prompt", "the diff")
+
+    cmd = captured["cmd"]
+    assert cmd[:2] == ["claude", "-p"]
+    assert "--json-schema" in cmd
+    # claude-cli/<alias> pins the model; bare claude-cli would omit --model.
+    assert cmd[cmd.index("--model") + 1] == "sonnet"
+    # The diff is piped on stdin, not passed as an argument.
+    assert captured["kwargs"]["input"] == "the diff"
+    # API-key env vars are dropped so the subprocess uses the Claude Code login.
+    env = captured["kwargs"]["env"]
+    assert "ANTHROPIC_API_KEY" not in env
+    assert "ANTHROPIC_AUTH_TOKEN" not in env
+
+
+def test_claude_cli_bare_model_omits_model_flag(monkeypatch):
+    captured = _fake_claude(
+        monkeypatch, stdout=_envelope(structured_output=_ENVELOPE_CHAPTERS)
+    )
+    _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+    assert "--model" not in captured["cmd"]
+
+
+def test_claude_cli_tolerates_leading_warning_line(monkeypatch):
+    # Claude Code prints a stray warning before the JSON envelope on some setups.
+    stdout = "⚠ connectors disabled\n" + _envelope(
+        structured_output=_ENVELOPE_CHAPTERS
+    )
+    _fake_claude(monkeypatch, stdout=stdout)
+    result = _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+    assert result.chapters[0].id == "c1"
+
+
+def test_claude_cli_missing_binary_raises_sagaerror(monkeypatch):
+    import saga.generate as gen
+
+    def boom(cmd, **kwargs):
+        raise FileNotFoundError("claude")
+
+    monkeypatch.setattr(gen.subprocess, "run", boom)
+    with pytest.raises(SagaError, match="claude CLI not found"):
+        _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+
+
+def test_claude_cli_nonzero_exit_raises_sagaerror(monkeypatch):
+    _fake_claude(monkeypatch, stdout="", returncode=1)
+    with pytest.raises(SagaError, match="claude CLI failed"):
+        _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+
+
+def test_claude_cli_missing_structured_output_raises_sagaerror(monkeypatch):
+    _fake_claude(monkeypatch, stdout=_envelope(is_error=False, result="text only"))
+    with pytest.raises(SagaError, match="no structured_output"):
+        _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+
+
+def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):
+    """A claude-cli model routes through the subprocess path, not instructor."""
+    import saga.generate as gen
+
+    called: dict = {}
+
+    def fake_cli(model, system_prompt, user_message):
+        called["model"] = model
+        return _SagaOut.model_validate(_ENVELOPE_CHAPTERS)
+
+    def no_client(model):
+        pytest.fail("should not build an instructor client")
+
+    monkeypatch.setattr(gen, "_generate_via_claude_cli", fake_cli)
+    monkeypatch.setattr(gen, "_build_client", no_client)
+    # Coverage against git_repo's real hunks isn't the point of this test — the
+    # stub chapters don't span them — so neutralize the check here.
+    monkeypatch.setattr(gen, "validate_coverage", lambda chapters, hunks: None)
+    saga = generate(git_repo, "main", "feature", model="claude-cli/sonnet")
+    assert called["model"] == "claude-cli/sonnet"
+    assert len(saga.chapters) >= 1
