@@ -212,9 +212,7 @@ def _generate_via_claude_cli(
             "(https://claude.com/claude-code), or choose a different --model."
         ) from e
     except subprocess.TimeoutExpired as e:
-        raise SagaError(
-            f"claude CLI timed out after {_CLAUDE_CLI_TIMEOUT}s."
-        ) from e
+        raise SagaError(f"claude CLI timed out after {_CLAUDE_CLI_TIMEOUT}s.") from e
 
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout).strip()
