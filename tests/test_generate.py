@@ -100,6 +100,45 @@ def test_build_client_unknown_provider_raises_sagaerror(monkeypatch):
         _build_client("bogusprovider/some-model")
 
 
+def _capture_from_provider(monkeypatch) -> dict:
+    """Patch instructor.from_provider to record its args instead of building a
+    real client, so local-provider wiring can be checked without a server."""
+    import saga.generate as gen
+
+    captured: dict = {}
+
+    def fake(model, **kwargs):
+        captured["model"] = model
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(gen.instructor, "from_provider", fake)
+    return captured
+
+
+def test_build_client_local_defaults_to_ollama(monkeypatch):
+    import saga.generate as gen
+
+    monkeypatch.delenv("SAGA_LOCAL_BASE_URL", raising=False)
+    captured = _capture_from_provider(monkeypatch)
+    _build_client("local/qwen2.5-coder:14b")
+    # local/ is dispatched through the OpenAI SDK at Ollama's endpoint, key unused.
+    assert captured["model"] == "openai/qwen2.5-coder:14b"
+    assert captured["base_url"] == "http://localhost:11434/v1"
+    assert captured["api_key"]
+    assert captured["mode"] == gen.instructor.Mode.JSON
+
+
+def test_build_client_local_honors_base_url_override(monkeypatch):
+    # Point local/ at LM Studio (or any OpenAI-compatible server) via the env var.
+    monkeypatch.setenv("SAGA_LOCAL_BASE_URL", "http://localhost:1234/v1")
+    captured = _capture_from_provider(monkeypatch)
+    _build_client("local/lmstudio-community/Qwen2.5-Coder-GGUF")
+    assert captured["base_url"] == "http://localhost:1234/v1"
+    # A slash-bearing model id keeps its slashes after the local/ prefix is stripped.
+    assert captured["model"] == "openai/lmstudio-community/Qwen2.5-Coder-GGUF"
+
+
 def test_generate_empty_diff_raises_before_any_network(empty_diff_repo: Path):
     with pytest.raises(SagaError, match="No reviewable hunks"):
         generate(empty_diff_repo, "main", "feature", model="anthropic/claude-opus-4-8")

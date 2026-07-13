@@ -16,7 +16,8 @@ the data). Open it offline, email it, commit it, or drop it on any static host.
 - Python 3.11+
 - `git`
 - An API key for your chosen provider, in the standard environment variable:
-  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` — or a running
+  local server (Ollama / LM Studio) and no key, with a `local/` model
 
 Generation is one structured LLM call made through [`instructor`](https://python.useinstructor.com).
 
@@ -37,7 +38,13 @@ e.g. `uv tool install /path/to/saga`. To upgrade: `uv tool install --force saga-
 
 ## Usage
 
-From inside the repo you want to review:
+From inside the repo, on the branch you want to review:
+
+```sh
+saga
+```
+
+From inside the repo, reviewing a different branch:
 
 ```sh
 saga --base main --head my-feature -o saga.html --open
@@ -70,12 +77,35 @@ the matching API key:
 | Anthropic  | `anthropic/claude-opus-4-8`              | `ANTHROPIC_API_KEY`  |
 | OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`     |
 | OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY` |
+| Local      | `local/qwen2.5-coder:14b`                | none                 |
 
 ```sh
 export SAGA_MODEL=openai/gpt-4o
 export OPENAI_API_KEY=sk-…
 saga --base main --head my-feature -o saga.html
 ```
+
+### Local LLMs (Ollama / LM Studio)
+
+A `local/` model runs against any OpenAI-compatible local server, with no API
+key. Pull a capable coder model first (`ollama pull qwen2.5-coder:14b`), then:
+
+```sh
+saga --model local/qwen2.5-coder:14b --base main --head my-feature
+```
+
+`local/` defaults to Ollama's endpoint (`http://localhost:11434/v1`). Point it
+at another server — e.g. LM Studio — with `SAGA_LOCAL_BASE_URL`:
+
+```sh
+export SAGA_LOCAL_BASE_URL=http://localhost:1234/v1   # LM Studio
+saga --model local/your-loaded-model --base main --head my-feature
+```
+
+Two caveats: saga requires schema-valid JSON output, so use an instruction-tuned
+model that follows JSON prompting reliably; and the full diff plus a 16k output
+budget can exceed a small model's context window — prefer larger-context models
+and expect weaker narration than a frontier hosted model.
 
 ## As a Claude Code skill
 
@@ -127,5 +157,4 @@ it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
 
 ## Not included (yet)
 
-- Support for Local LLMs via ollama / LM Studio
 - A GitHub Action to auto-generate saga on PRs.
