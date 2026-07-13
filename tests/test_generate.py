@@ -15,8 +15,12 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
+import saga.generate as gen
 from saga.generate import (
+    _MAX_ATTEMPTS,
+    _MAX_CHAPTERS,
     _build_client,
     _build_message,
     _ChapterOut,
@@ -294,6 +298,65 @@ def test_claude_cli_missing_structured_output_raises_sagaerror(monkeypatch):
     _fake_claude(monkeypatch, stdout=_envelope(is_error=False, result="text only"))
     with pytest.raises(SagaError, match="no structured_output"):
         _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+
+
+# ---------------------------------------------------------------------------
+# Chapter-count ceiling: reject over-limit sagas and retry to consolidate
+# ---------------------------------------------------------------------------
+
+
+def _n_chapters(n: int) -> dict:
+    return {
+        "chapters": [
+            {
+                "id": f"c{i}",
+                "title": "T",
+                "summary": "S",
+                "narration": "N",
+                "hunks": ["h0"],
+            }
+            for i in range(n)
+        ]
+    }
+
+
+def test_saga_out_rejects_more_than_max_chapters():
+    # At the ceiling is fine; one over is rejected.
+    _SagaOut.model_validate(_n_chapters(_MAX_CHAPTERS))
+    with pytest.raises(ValidationError, match="at most"):
+        _SagaOut.model_validate(_n_chapters(_MAX_CHAPTERS + 1))
+
+
+def test_claude_cli_retries_and_consolidates_when_over_limit(monkeypatch):
+    calls: list[str] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(kwargs["input"])
+        n = _MAX_CHAPTERS + 1 if len(calls) == 1 else 1  # over limit, then fixed
+        stdout = _envelope(structured_output=_n_chapters(n))
+        return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(gen.subprocess, "run", fake_run)
+    result = _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+    assert len(result.chapters) == 1
+    assert len(calls) == 2
+    # The retry feeds the rejection reason back so the model can correct.
+    assert "Previous attempt was rejected" in calls[1]
+
+
+def test_claude_cli_gives_up_after_max_attempts_over_limit(monkeypatch):
+    attempts = 0
+
+    def fake_run(cmd, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        stdout = _envelope(structured_output=_n_chapters(_MAX_CHAPTERS + 1))
+        return subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(gen.subprocess, "run", fake_run)
+    with pytest.raises(SagaError, match="did not match the saga schema"):
+        _generate_via_claude_cli("claude-cli", "sys prompt", "the diff")
+    assert attempts == _MAX_ATTEMPTS
 
 
 def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):

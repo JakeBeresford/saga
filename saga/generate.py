@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Literal
 
 import instructor
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from .diff import DiffResult, compute_diff, rev_parse
 from .model import (
@@ -43,6 +43,12 @@ from .model import (
 )
 
 _MAX_TOKENS = 16000
+# Hard ceiling on chapters — more than this means the diff was chunked too small.
+# Enforced as a schema validator so the model is asked to consolidate and retry
+# rather than the whole saga being thrown away.
+_MAX_CHAPTERS = 10
+# Total attempts (initial + retries) to coax a within-limit saga out of a model.
+_MAX_ATTEMPTS = 3
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Ollama's OpenAI-compatible endpoint; override with $SAGA_LOCAL_BASE_URL (e.g.
 # http://localhost:1234/v1 for LM Studio).
@@ -76,8 +82,23 @@ class _ChapterOut(BaseModel):
     qa: _QAOut | None = None
 
 
+def _chapter_limit_message(n: int) -> str:
+    return (
+        f"Returned {n} chapters, but a walkthrough may have at most {_MAX_CHAPTERS}. "
+        "Consolidate: merge finely-split chapters into fewer, broader ones, and fold "
+        "each test/spec hunk into the chapter that adds the functionality it covers "
+        "instead of giving tests their own chapters."
+    )
+
+
 class _SagaOut(BaseModel):
     chapters: list[_ChapterOut]
+
+    @model_validator(mode="after")
+    def _enforce_chapter_limit(self) -> _SagaOut:
+        if len(self.chapters) > _MAX_CHAPTERS:
+            raise ValueError(_chapter_limit_message(len(self.chapters)))
+        return self
 
 
 def _to_chapter(c: _ChapterOut) -> Chapter:
@@ -197,50 +218,63 @@ def _generate_via_claude_cli(
         if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
     }
 
-    try:
-        proc = subprocess.run(
-            cmd,
-            input=user_message,
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=_CLAUDE_CLI_TIMEOUT,
-        )
-    except FileNotFoundError as e:
-        raise SagaError(
-            "claude CLI not found. Install Claude Code and log in "
-            "(https://claude.com/claude-code), or choose a different --model."
-        ) from e
-    except subprocess.TimeoutExpired as e:
-        raise SagaError(f"claude CLI timed out after {_CLAUDE_CLI_TIMEOUT}s.") from e
+    # --json-schema constrains the field shape but not the chapter-count rule
+    # (a pydantic model_validator), so an over-limit saga is caught by
+    # model_validate below. Retry with the error fed back — like instructor does
+    # for the SDK providers — before giving up.
+    message = user_message
+    last_error: Exception | None = None
+    for _ in range(_MAX_ATTEMPTS):
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=message,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=_CLAUDE_CLI_TIMEOUT,
+            )
+        except FileNotFoundError as e:
+            raise SagaError(
+                "claude CLI not found. Install Claude Code and log in "
+                "(https://claude.com/claude-code), or choose a different --model."
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            raise SagaError(
+                f"claude CLI timed out after {_CLAUDE_CLI_TIMEOUT}s."
+            ) from e
 
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout).strip()
-        raise SagaError(f"claude CLI failed (exit {proc.returncode}): {detail}")
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout).strip()
+            raise SagaError(f"claude CLI failed (exit {proc.returncode}): {detail}")
 
-    # stdout may carry a leading warning line before the JSON object; start at the
-    # first brace.
-    text = proc.stdout.strip()
-    start = text.find("{")
-    if start == -1:
-        raise SagaError(f"claude CLI returned no JSON:\n{text[:500]}")
-    try:
-        envelope = json.loads(text[start:])
-    except json.JSONDecodeError as e:
-        raise SagaError(f"could not parse claude CLI output: {e}") from e
+        # stdout may carry a leading warning line before the JSON object; start at
+        # the first brace.
+        text = proc.stdout.strip()
+        start = text.find("{")
+        if start == -1:
+            raise SagaError(f"claude CLI returned no JSON:\n{text[:500]}")
+        try:
+            envelope = json.loads(text[start:])
+        except json.JSONDecodeError as e:
+            raise SagaError(f"could not parse claude CLI output: {e}") from e
 
-    if envelope.get("is_error"):
-        raise SagaError(f"claude CLI reported an error: {envelope.get('result')}")
-    structured = envelope.get("structured_output")
-    if structured is None:
-        raise SagaError(
-            "claude CLI returned no structured_output — the model did not "
-            "produce schema-valid output."
-        )
-    try:
-        return _SagaOut.model_validate(structured)
-    except Exception as e:
-        raise SagaError(f"claude CLI output did not match the saga schema: {e}") from e
+        if envelope.get("is_error"):
+            raise SagaError(f"claude CLI reported an error: {envelope.get('result')}")
+        structured = envelope.get("structured_output")
+        if structured is None:
+            raise SagaError(
+                "claude CLI returned no structured_output — the model did not "
+                "produce schema-valid output."
+            )
+        try:
+            return _SagaOut.model_validate(structured)
+        except ValidationError as e:
+            # Re-ask with the rejection reason (usually: too many chapters).
+            last_error = e
+            message = f"{user_message}\n\n# Previous attempt was rejected\n{e}"
+
+    raise SagaError(f"claude CLI output did not match the saga schema: {last_error}")
 
 
 def generate(
@@ -279,6 +313,9 @@ def generate(
             result: _SagaOut = client.create(
                 response_model=_SagaOut,
                 max_tokens=_MAX_TOKENS,
+                # Retry (feeding the validation error back) so an over-limit saga
+                # is regenerated smaller instead of failing outright.
+                max_retries=_MAX_ATTEMPTS - 1,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
