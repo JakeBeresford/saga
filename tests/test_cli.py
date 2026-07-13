@@ -145,6 +145,15 @@ def test_main_opens_browser_by_default(
     assert opened and opened[0].startswith("file://")
 
 
+def test_version_flag_prints_version_and_exits():
+    """--version reports the installed version and exits before any generation."""
+    from importlib.metadata import version as package_version
+
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert result.output.strip() == f"saga {package_version('saga-cli')}"
+
+
 def test_main_model_flag_is_passed_through(git_repo: Path, tmp_path, stub_pipeline):
     runner.invoke(
         app,
