@@ -9,8 +9,8 @@ want to review:
 
     saga --base main --head my-feature -o saga.html --open
 
-Defaults: base=main, head=current branch (HEAD), output=saga.html,
-model=anthropic/claude-opus-4-8 (override with --model or $SAGA_MODEL).
+Defaults: base=auto-detected (e.g. origin/main), head=current branch (HEAD),
+output=saga.html, model=anthropic/claude-opus-4-8 (override --model or $SAGA_MODEL).
 Pass --intent PATH to give the model a plan/spec for richer, plan-aware narration.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import typer
 
 from .comments import comments_app
-from .diff import current_branch, repo_root_from
+from .diff import current_branch, default_base, repo_root_from
 from .generate import generate
 from .model import SagaError
 from .render import render
@@ -52,7 +52,9 @@ def main(
         is_eager=True,
         callback=_version_callback,
     ),
-    base: str = typer.Option("main", help="base ref (default: main)"),
+    base: str | None = typer.Option(
+        None, help="base ref (default: auto-detected, e.g. origin/main)"
+    ),
     head: str = typer.Option("HEAD", help="head ref to walk through (default: HEAD)"),
     intent: Path | None = typer.Option(
         None, help="optional path to a plan/spec describing the change's intent"
@@ -101,10 +103,13 @@ def main(
             typer.echo(f"error: could not read intent file: {e}", err=True)
             raise typer.Exit(1) from e
 
+    resolved_base = base if base is not None else default_base(repo_root)
     resolved_head = current_branch(repo_root) if head == "HEAD" else head
-    typer.echo(f"Generating saga for {base}...{resolved_head} …", err=True)
+    typer.echo(f"Generating saga for {resolved_base}...{resolved_head} …", err=True)
     try:
-        saga = generate(repo_root, base, resolved_head, model=model, intent=intent_text)
+        saga = generate(
+            repo_root, resolved_base, resolved_head, model=model, intent=intent_text
+        )
         html = render(repo_root, saga)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)

@@ -76,6 +76,15 @@ def test_main_resolves_head_from_current_branch(
     assert stub_pipeline["generate"]["head"] == "feature"
 
 
+def test_main_auto_detects_base_when_omitted(git_repo: Path, tmp_path, stub_pipeline):
+    """With no --base, the base is detected (local main here) rather than assumed."""
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    )
+    assert result.exit_code == 0
+    assert stub_pipeline["generate"]["base"] == "main"
+
+
 def test_main_reads_intent_file(git_repo: Path, tmp_path, stub_pipeline):
     intent = tmp_path / "intent.md"
     intent.write_text("Do the thing.")
