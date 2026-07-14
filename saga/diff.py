@@ -159,9 +159,7 @@ def pr_diff(pr: str) -> PRDiff:
             f"{c['oid'][:9]} {c['messageHeadline']}" for c in meta.get("commits", [])
         ]
         return PRDiff(
-            diff=DiffResult(
-                diff_text=diff_result.stdout, commits=commits, diffstat=""
-            ),
+            diff=DiffResult(diff_text=diff_result.stdout, commits=commits, diffstat=""),
             base=meta["baseRefName"],
             head=meta["headRefName"],
             head_sha=meta["headRefOid"],

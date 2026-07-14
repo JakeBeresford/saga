@@ -38,6 +38,7 @@ def _diff_and_sha(repo: Path, base: str = "main", head: str = "feature"):
     """The live diff + head sha for a repo fixture, for the new generate() shape."""
     return compute_diff(repo, base, head), rev_parse(repo, head)
 
+
 # ---------------------------------------------------------------------------
 # Prompt assembly (pure)
 # ---------------------------------------------------------------------------
