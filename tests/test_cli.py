@@ -36,8 +36,8 @@ def stub_pipeline(monkeypatch):
             chapters=[Chapter(id="c1", title="t", summary="s", narration="n")],
         )
 
-    def fake_render(saga, diff):
-        calls["render"] = dict(saga=saga, diff=diff)
+    def fake_render(saga, diff, *, video_paths=None):
+        calls["render"] = dict(saga=saga, diff=diff, video_paths=video_paths)
         return "<html>saga</html>"
 
     monkeypatch.setattr(cli, "generate", fake_generate)
