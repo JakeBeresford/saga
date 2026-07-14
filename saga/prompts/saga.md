@@ -11,8 +11,10 @@ Your job: partition the diff into an **ordered list of chapters** that tell one 
 ## Rules
 
 - **Cover every hunk.** Every hunk id must appear in at least one chapter. This is mandatory — the walkthrough is rejected if any hunk is left out. A hunk may appear in more than one chapter only if it genuinely belongs to both.
+- **Use as many chapters as the change needs — never more than 10.** The count should track the size of the change: a small PR might be 1–3 chapters, and it is wrong to pad it out. 10 is a hard ceiling, not a target: even a very large diff must fit in **10 chapters or fewer**. If you find yourself with more, you are chunking too small — consolidate related hunks into fewer, broader chapters. The walkthrough is rejected if it exceeds 10 chapters.
 - **Order matters.** Sequence chapters so a reviewer who reads top-to-bottom builds understanding naturally — usually setup/foundation first, then the core change, then wiring and tests.
 - **Group by idea, not by file.** A chapter can interleave hunks from several files when they serve one idea.
+- **Fold tests into the feature they verify.** Do not give tests or specs their own chapters. Put each test/spec hunk in the same chapter as the functionality it exercises. A trailing run of test-only chapters is exactly what to avoid.
 - **Zoom out when it helps.** If a chapter is about how the change fits the wider codebase, say so in the narration.
 - **Zoom in on the hard parts.** For complex or non-obvious changes, explain why it was needed and why it was done this way rather than an alternative.
 
@@ -23,9 +25,9 @@ Your job: partition the diff into an **ordered list of chapters** that tell one 
 - `narration` — **2–4 short sentences, plain language.** The intent, the key decision, and the rationale. The reviewer does not want a wall of text — be brief and concrete. Markdown is allowed but keep it light.
 - `hunks` — the list of hunk ids in this chapter, in reading order.
 - `plan_step` — when an intent document was supplied, the step/section this chapter maps to (e.g. `"PR 1: …"`); otherwise `null`.
-- `confidence` — `"high"`, `"medium"`, or `"low"`. Use `"low"` honestly for anything that deserves close review.
-- `deviation` — `null` unless an intent was supplied _and_ the implementation diverged from it; then a short sentence explaining how and why. Be honest — deviations are highlighted for the reviewer.
-- `qa` — `null`, or `{"status": "green", "note": "…"}` when tests cover this chapter's changes, or `{"status": "none", "note": "…"}` to flag a chapter with no test coverage worth noting.
+- `confidence` — how sure you are that you correctly understood this chapter's intent and change. `"medium"` is the default. Use `"low"` only when you are genuinely unsure — the intent is ambiguous, or the code is subtle enough you may have misread it — so the reviewer knows to read closely rather than trust your summary. Keep `"low"` rare; over-flagging drains its meaning. Use `"high"` when the change is clear.
+- `deviation` — `null` unless an intent was supplied _and_ the implementation diverged from it; then a short sentence on how and why it differs. This is informational, not a criticism — plans change; it just flags the difference so the reviewer can confirm it was intentional.
+- `qa` — a manual-QA recommendation for the reviewer. Use `null` when this chapter's changes appear well-covered by automated tests in the diff, so no manual QA is needed. Otherwise, a short sentence recommending what to check by hand — e.g. a visual/interaction check for front-end changes, or specific manual steps for anything hard to cover automatically (external integrations, migrations, environment-specific behavior).
 
 ## Output
 
@@ -43,7 +45,7 @@ Return **only** a single JSON object, no prose before or after, no code fences:
       "plan_step": null,
       "confidence": "high",
       "deviation": null,
-      "qa": {"status": "green", "note": "Covered by existing tests."}
+      "qa": "Visually confirm the settings panel renders correctly on mobile widths."
     }
   ]
 }

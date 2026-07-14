@@ -86,15 +86,11 @@
   border: 1px solid var(--line); color: var(--text-dim); background: var(--surface-2);
 }
 .saga-plan { color: var(--text-dim); }
-.saga-qa { color: var(--ok); border-color: var(--ok-solid); background: var(--ok-tint); }
 .saga-read { color: var(--accent); border-color: var(--accent-solid); background: var(--accent-tint); }
-/* Deviations must be loud. */
-.saga-dev {
-  color: var(--danger-ink); background: var(--danger-loud); border-color: var(--danger); font-weight: 600;
-}
-/* Low confidence flagged for close review (amber). */
-.saga-low {
-  color: var(--warn-ink); background: var(--warn); border-color: var(--warn-solid); font-weight: 600;
+/* Agent attention flags (QA, differs-from-plan, closer-look) share one calm
+   amber; the label carries the meaning, not the colour. */
+.saga-qa, .saga-dev, .saga-low {
+  color: var(--warn); border-color: var(--warn-solid); background: var(--warn-tint);
 }
 
 /* --- chapter reader --- */
@@ -120,10 +116,10 @@
 .saga-chapter-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .saga-chapter-title { font-size: var(--fs-xl); font-weight: 600; margin: 0; }
 
-/* Loud deviation banner. */
+/* Differs-from-plan banner (amber attention, same family as low-confidence). */
 .saga-deviation {
-  background: var(--danger-loud-bg); border: 1px solid var(--danger); border-left: 4px solid var(--danger);
-  color: var(--danger-ink); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; font-size: var(--fs-base);
+  background: var(--warn-tint); border: 1px solid var(--warn-solid); border-left: 4px solid var(--warn);
+  color: var(--warn); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0; font-size: var(--fs-base);
 }
 .saga-lowconf {
   background: var(--warn-tint); border: 1px solid var(--warn-solid); border-left: 4px solid var(--warn);
@@ -139,7 +135,7 @@
   font-family: var(--font-mono); font-size: var(--fs-sm);
 }
 
-.saga-qanote { color: var(--ok); font-size: var(--fs-sm); margin: 8px 0; }
+.saga-qanote { color: var(--warn); font-size: var(--fs-sm); margin: 8px 0; }
 
 .saga-readmark {
   display: inline-flex; align-items: center; gap: 6px;

@@ -311,20 +311,15 @@
 
   function renderVerdict(v) {
     if (!v) return;
-    const parts = [
-      v.chapters + (v.chapters === 1 ? ' chapter' : ' chapters'),
-      v.deviations + (v.deviations === 1 ? ' deviation' : ' deviations'),
-      v.low_confidence + ' low-confidence',
-    ];
-    if (v.qa && v.qa !== 'n/a') parts.push('QA ' + v.qa);
+    const parts = [v.chapters + (v.chapters === 1 ? ' chapter' : ' chapters')];
+    if (v.deviations > 0) parts.push(v.deviations + (v.deviations === 1 ? ' differs from plan' : ' differ from plan'));
+    if (v.low_confidence > 0) parts.push(v.low_confidence + (v.low_confidence === 1 ? ' needs a closer look' : ' need a closer look'));
     $('saga-verdict').textContent = parts.join(' · ');
-    // Shift the top status rail to the loudest state present:
-    // deviation (red) > attention (amber) > clear (green).
+    // Two-tier status rail: amber when anything is flagged, else green.
     const rail = $('saga-rail');
     if (rail) {
-      rail.classList.remove('saga-rail-ok', 'saga-rail-attn', 'saga-rail-dev');
-      if (v.deviations > 0) rail.classList.add('saga-rail-dev');
-      else if (v.low_confidence > 0 || v.qa === 'attention') rail.classList.add('saga-rail-attn');
+      rail.classList.remove('saga-rail-ok', 'saga-rail-attn');
+      if (v.deviations > 0 || v.low_confidence > 0) rail.classList.add('saga-rail-attn');
       else rail.classList.add('saga-rail-ok');
     }
   }
@@ -334,9 +329,9 @@
   function badges(ch, read) {
     const out = [];
     if (ch.plan_step) out.push('<span class="saga-badge saga-plan">' + esc(ch.plan_step) + '</span>');
-    if (ch.deviation) out.push('<span class="saga-badge saga-dev">⚠ Deviation</span>');
-    if (ch.confidence === 'low') out.push('<span class="saga-badge saga-low">Low confidence</span>');
-    if (ch.qa && ch.qa.status === 'green') out.push('<span class="saga-badge saga-qa">✓ QA</span>');
+    if (ch.deviation) out.push('<span class="saga-badge saga-dev">Differs from plan</span>');
+    if (ch.confidence === 'low') out.push('<span class="saga-badge saga-low">Needs a closer look</span>');
+    if (ch.qa) out.push('<span class="saga-badge saga-qa">⚠ QA</span>');
     if (read) out.push('<span class="saga-badge saga-read">✓ Read</span>');
     return out.join('');
   }
@@ -390,13 +385,13 @@
     reader.hidden = false;
 
     const devBanner = ch.deviation
-      ? '<div class="saga-deviation"><strong>⚠ Deviation from plan.</strong> ' + esc(ch.deviation) + '</div>'
+      ? '<div class="saga-deviation"><strong>Differs from the plan.</strong> ' + esc(ch.deviation) + ' Worth confirming this was intentional.</div>'
       : '';
     const lowBanner = ch.confidence === 'low'
-      ? '<div class="saga-lowconf">Low confidence — this chapter needs close review.</div>'
+      ? '<div class="saga-lowconf"><strong>Needs a closer look.</strong> The walkthrough is unsure here — read the diff rather than just trusting the summary.</div>'
       : '';
-    const qaLine = ch.qa && ch.qa.note
-      ? '<div class="saga-qanote">' + (ch.qa.status === 'green' ? '✓ ' : '') + esc(ch.qa.note) + '</div>'
+    const qaLine = ch.qa
+      ? '<div class="saga-qanote">⚠ Manual QA: ' + esc(ch.qa) + '</div>'
       : '';
 
     // Class-based (not id-based) so the same nav can render at top and bottom.
