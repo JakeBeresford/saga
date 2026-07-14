@@ -86,7 +86,7 @@
   border: 1px solid var(--line); color: var(--text-dim); background: var(--surface-2);
 }
 .saga-plan { color: var(--text-dim); }
-.saga-qa { color: var(--ok); border-color: var(--ok-solid); background: var(--ok-tint); }
+.saga-qa { color: var(--warn); border-color: var(--warn-solid); background: var(--warn-tint); }
 .saga-read { color: var(--accent); border-color: var(--accent-solid); background: var(--accent-tint); }
 /* Deviations must be loud. */
 .saga-dev {
@@ -139,7 +139,7 @@
   font-family: var(--font-mono); font-size: var(--fs-sm);
 }
 
-.saga-qanote { color: var(--ok); font-size: var(--fs-sm); margin: 8px 0; }
+.saga-qanote { color: var(--warn); font-size: var(--fs-sm); margin: 8px 0; }
 
 .saga-readmark {
   display: inline-flex; align-items: center; gap: 6px;

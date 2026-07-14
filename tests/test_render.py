@@ -85,7 +85,7 @@ def test_render_escapes_angle_brackets_in_payload(
     """A diff containing ``</script>`` must be escaped so it cannot break out of
     the inlined ``<script>`` tag."""
 
-    def fake_payload(repo_root, saga, *, qa_state="n/a"):
+    def fake_payload(repo_root, saga):
         return {
             "branch": "b",
             "base": "m",

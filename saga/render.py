@@ -52,7 +52,7 @@ def _asset(name: str) -> str:
     return (_ASSETS / name).read_text()
 
 
-def build_payload(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> dict:
+def build_payload(repo_root: Path, saga: Saga) -> dict:
     """Attach each chapter's reconstructed diff to the saga for the client.
 
     The hunk map is recomputed from the live diff of the saga's own
@@ -68,7 +68,7 @@ def build_payload(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> dict
     return {
         "branch": saga.branch,
         "base": saga.base,
-        "verdict": saga.verdict(qa_state=qa_state),
+        "verdict": saga.verdict(),
         "chapters": chapters,
     }
 
@@ -82,9 +82,9 @@ def _json_for_script(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
-def render(repo_root: Path, saga: Saga, *, qa_state: str = "n/a") -> str:
+def render(repo_root: Path, saga: Saga) -> str:
     """Build the complete self-contained HTML document for *saga*."""
-    payload = build_payload(repo_root, saga, qa_state=qa_state)
+    payload = build_payload(repo_root, saga)
     title = f"Saga · {saga.branch}"
     styles = "\n".join(
         [

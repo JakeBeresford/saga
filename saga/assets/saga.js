@@ -316,7 +316,6 @@
       v.deviations + (v.deviations === 1 ? ' deviation' : ' deviations'),
       v.low_confidence + ' low-confidence',
     ];
-    if (v.qa && v.qa !== 'n/a') parts.push('QA ' + v.qa);
     $('saga-verdict').textContent = parts.join(' · ');
     // Shift the top status rail to the loudest state present:
     // deviation (red) > attention (amber) > clear (green).
@@ -324,7 +323,7 @@
     if (rail) {
       rail.classList.remove('saga-rail-ok', 'saga-rail-attn', 'saga-rail-dev');
       if (v.deviations > 0) rail.classList.add('saga-rail-dev');
-      else if (v.low_confidence > 0 || v.qa === 'attention') rail.classList.add('saga-rail-attn');
+      else if (v.low_confidence > 0) rail.classList.add('saga-rail-attn');
       else rail.classList.add('saga-rail-ok');
     }
   }
@@ -336,7 +335,7 @@
     if (ch.plan_step) out.push('<span class="saga-badge saga-plan">' + esc(ch.plan_step) + '</span>');
     if (ch.deviation) out.push('<span class="saga-badge saga-dev">⚠ Deviation</span>');
     if (ch.confidence === 'low') out.push('<span class="saga-badge saga-low">Low confidence</span>');
-    if (ch.qa && ch.qa.status === 'green') out.push('<span class="saga-badge saga-qa">✓ QA</span>');
+    if (ch.qa) out.push('<span class="saga-badge saga-qa">⚠ QA</span>');
     if (read) out.push('<span class="saga-badge saga-read">✓ Read</span>');
     return out.join('');
   }
@@ -395,8 +394,8 @@
     const lowBanner = ch.confidence === 'low'
       ? '<div class="saga-lowconf">Low confidence — this chapter needs close review.</div>'
       : '';
-    const qaLine = ch.qa && ch.qa.note
-      ? '<div class="saga-qanote">' + (ch.qa.status === 'green' ? '✓ ' : '') + esc(ch.qa.note) + '</div>'
+    const qaLine = ch.qa
+      ? '<div class="saga-qanote">⚠ Manual QA: ' + esc(ch.qa) + '</div>'
       : '';
 
     // Class-based (not id-based) so the same nav can render at top and bottom.

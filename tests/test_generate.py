@@ -25,7 +25,6 @@ from saga.generate import (
     _build_message,
     _ChapterOut,
     _generate_via_claude_cli,
-    _QAOut,
     _SagaOut,
     _to_chapter,
     generate,
@@ -82,14 +81,14 @@ def test_to_chapter_maps_schema_to_dataclass():
         hunks=["h0"],
         confidence="high",
         deviation="",
-        qa=_QAOut(status="green", note="ok"),
+        qa="Visually check the panel on mobile.",
     )
     ch = _to_chapter(out)
     assert ch.id == "c1"
     assert ch.confidence == "high"
     # Empty-string deviation normalizes to None.
     assert ch.deviation is None
-    assert ch.qa == {"status": "green", "note": "ok"}
+    assert ch.qa == "Visually check the panel on mobile."
 
 
 # ---------------------------------------------------------------------------

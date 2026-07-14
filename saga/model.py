@@ -130,8 +130,9 @@ class Chapter:
 
     ``hunks`` lists the hunk ids this chapter covers. ``deviation`` is set (to the
     agent's explanation) only when the implementation diverged from the stated
-    intent; ``qa`` carries an optional ``{"status": …, "note": str}`` receipt.
-    Both are ``None`` when no intent context was supplied.
+    intent; ``qa`` carries an optional manual-QA recommendation (a short
+    sentence), set only when the chapter's changes are not well-covered by
+    automated tests. Both are ``None`` when nothing is worth flagging.
     """
 
     id: str
@@ -142,7 +143,7 @@ class Chapter:
     plan_step: str | None = None
     confidence: str = "medium"
     deviation: str | None = None
-    qa: dict | None = None
+    qa: str | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> Chapter:
@@ -204,7 +205,7 @@ class Saga:
             "chapters": [c.to_dict() for c in self.chapters],
         }
 
-    def verdict(self, *, qa_state: str) -> dict:
+    def verdict(self) -> dict:
         """The top-line summary rendered above the table of contents.
 
         Computed here (not trusted from the LLM) so the counts always match the
@@ -214,7 +215,6 @@ class Saga:
             "chapters": len(self.chapters),
             "deviations": sum(1 for c in self.chapters if c.deviation),
             "low_confidence": sum(1 for c in self.chapters if c.confidence == "low"),
-            "qa": qa_state,
         }
 
 

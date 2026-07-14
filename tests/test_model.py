@@ -145,7 +145,7 @@ def test_chapter_dict_roundtrip():
         plan_step="step 2",
         confidence="high",
         deviation="drifted",
-        qa={"status": "green", "note": "ok"},
+        qa="Visually check the panel on mobile.",
     )
     assert Chapter.from_dict(ch.to_dict()) == ch
 
@@ -182,5 +182,5 @@ def test_verdict_counts():
             Chapter(id="c3", title="", summary="", narration="", confidence="high"),
         ],
     )
-    v = saga.verdict(qa_state="green")
-    assert v == {"chapters": 3, "deviations": 1, "low_confidence": 1, "qa": "green"}
+    v = saga.verdict()
+    assert v == {"chapters": 3, "deviations": 1, "low_confidence": 1}

@@ -65,11 +65,6 @@ _PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "saga.md"
 # ---------------------------------------------------------------------------
 
 
-class _QAOut(BaseModel):
-    status: str
-    note: str = ""
-
-
 class _ChapterOut(BaseModel):
     id: str
     title: str
@@ -79,7 +74,7 @@ class _ChapterOut(BaseModel):
     plan_step: str | None = None
     confidence: Literal["high", "medium", "low"] = "medium"
     deviation: str | None = None
-    qa: _QAOut | None = None
+    qa: str | None = None
 
 
 def _chapter_limit_message(n: int) -> str:
@@ -111,7 +106,7 @@ def _to_chapter(c: _ChapterOut) -> Chapter:
         plan_step=c.plan_step,
         confidence=c.confidence,
         deviation=c.deviation or None,
-        qa=c.qa.model_dump() if c.qa else None,
+        qa=c.qa or None,
     )
 
 
