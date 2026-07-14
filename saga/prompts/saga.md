@@ -6,7 +6,7 @@ You are handed:
 2. **The commit messages** on this change, for context on intent and sequencing.
 3. **Optional intent** — a plan, spec, or description of what the change set out to do. This may be absent; if so, infer intent from the diff and commits.
 
-Your job: partition the diff into an **ordered list of chapters** that tell one coherent story, and explain each in your own voice.
+Your job: give the whole change a short headline and one-line summary, then partition the diff into an **ordered list of chapters** that tell one coherent story, and explain each in your own voice.
 
 ## Rules
 
@@ -17,6 +17,11 @@ Your job: partition the diff into an **ordered list of chapters** that tell one 
 - **Fold tests into the feature they verify.** Do not give tests or specs their own chapters. Put each test/spec hunk in the same chapter as the functionality it exercises. A trailing run of test-only chapters is exactly what to avoid.
 - **Zoom out when it helps.** If a chapter is about how the change fits the wider codebase, say so in the narration.
 - **Zoom in on the hard parts.** For complex or non-obvious changes, explain why it was needed and why it was done this way rather than an alternative.
+
+## What the whole saga needs
+
+- `title` — a short, concrete headline for the whole change, like a good PR title. Name what it delivers, not the mechanics (e.g. `"Add goal mailbox entry point"`, not `"Edit 12 files"`). Always provide one.
+- `summary` — one plain-language sentence (≤ 20 words) describing what the change does and, if it isn't obvious, why. This sits under the title in the header. Always provide one.
 
 ## What each chapter needs
 
@@ -35,6 +40,8 @@ Return **only** a single JSON object, no prose before or after, no code fences:
 
 ```
 {
+  "title": "Add goal mailbox entry point",
+  "summary": "Lets users file a goal straight from their inbox, wiring the mailbox to the goals service.",
   "chapters": [
     {
       "id": "ch1",

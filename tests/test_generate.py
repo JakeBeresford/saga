@@ -366,7 +366,9 @@ def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):
 
     def fake_cli(model, system_prompt, user_message):
         called["model"] = model
-        return _SagaOut.model_validate(_ENVELOPE_CHAPTERS)
+        return _SagaOut.model_validate(
+            {**_ENVELOPE_CHAPTERS, "title": "The headline", "summary": "One line."}
+        )
 
     def no_client(model):
         pytest.fail("should not build an instructor client")
@@ -379,3 +381,7 @@ def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):
     saga = generate(git_repo, "main", "feature", model="claude-cli/sonnet")
     assert called["model"] == "claude-cli/sonnet"
     assert len(saga.chapters) >= 1
+    # Saga-level headline/summary flow through; generation stamps the time.
+    assert saga.title == "The headline"
+    assert saga.summary == "One line."
+    assert saga.generated_at

@@ -44,6 +44,10 @@ def test_build_payload_attaches_reconstructed_diffs(git_repo: Path):
     assert payload["base"] == "main"
     assert payload["verdict"]["chapters"] == 2
 
+    # Provenance + diffstat travel with the payload for the header.
+    assert payload["commit_sha"] == "deadbeef"
+    assert payload["stats"] == {"files": 2, "added": 4, "removed": 1}
+
     chapters = payload["chapters"]
     assert len(chapters) == 2
     # c1 covers the two foo.py hunks; its diff is real reconstructed unified diff.
@@ -52,6 +56,19 @@ def test_build_payload_attaches_reconstructed_diffs(git_repo: Path):
     # c2 covers only the new file.
     assert "diff --git a/new.txt b/new.txt" in chapters[1]["diff"]
     assert "foo.py" not in chapters[1]["diff"]
+
+
+def test_render_uses_saga_title_in_document_and_head(git_repo: Path, stub_vendored):
+    saga = _saga_for()
+    saga.title = "Add goal mailbox entry point"
+    saga.summary = "Lets users file a goal straight from their inbox."
+    payload = render_mod.build_payload(git_repo, saga)
+    assert payload["title"] == saga.title
+    assert payload["summary"] == saga.summary
+
+    html = render_mod.render(git_repo, saga)
+    # The saga title names the browser tab (branch still appended for context).
+    assert "<title>Add goal mailbox entry point · feature</title>" in html
 
 
 def test_build_payload_skips_unknown_hunk_ids(git_repo: Path):
