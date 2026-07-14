@@ -14,3 +14,4 @@ __pycache__/
 
 dist/
 saga.html
+saga/remotion/node_modules/

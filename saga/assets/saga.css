@@ -168,6 +168,12 @@
   color: var(--text-dim); font-size: var(--fs-sm); margin: 8px 0 16px; cursor: pointer;
 }
 
+.saga-chapter-video {
+  display: block; width: 100%; border-radius: var(--radius-lg);
+  border: 1px solid var(--line); margin: 14px 0;
+  background: var(--surface); aspect-ratio: 16 / 9;
+}
+
 .saga-chapter-diff { margin-top: 8px; }
 .saga-empty { color: var(--text-dim); font-size: var(--fs-base); padding: 16px 0; }
 

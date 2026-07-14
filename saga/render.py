@@ -70,7 +70,12 @@ def _diffstat(diff_text: str) -> dict:
     return {"files": files, "added": added, "removed": removed}
 
 
-def build_payload(saga: Saga, diff: DiffResult) -> dict:
+def build_payload(
+    saga: Saga,
+    diff: DiffResult,
+    *,
+    video_paths: dict[str, str] | None = None,
+) -> dict:
     """Attach each chapter's reconstructed diff to the saga for the client.
 
     The hunk map is built from the same *diff* generation used, so every stored
@@ -82,6 +87,8 @@ def build_payload(saga: Saga, diff: DiffResult) -> dict:
     for ch in saga.chapters:
         d = ch.to_dict()
         d["diff"] = reconstruct_diff([hmap[h] for h in ch.hunks if h in hmap])
+        if video_paths and ch.id in video_paths:
+            d["video"] = video_paths[ch.id]
         chapters.append(d)
     return {
         "branch": saga.branch,
@@ -105,9 +112,14 @@ def _json_for_script(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
-def render(saga: Saga, diff: DiffResult) -> str:
+def render(
+    saga: Saga,
+    diff: DiffResult,
+    *,
+    video_paths: dict[str, str] | None = None,
+) -> str:
     """Build the complete self-contained HTML document for *saga*."""
-    payload = build_payload(saga, diff)
+    payload = build_payload(saga, diff, video_paths=video_paths)
     title = f"{html.escape(saga.title) or 'Saga'} · {html.escape(saga.branch)}"
     styles = "\n".join(
         [

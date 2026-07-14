@@ -40,6 +40,7 @@ from .diff import (
 from .generate import generate
 from .model import SagaError
 from .render import render
+from .video import render_videos
 
 
 class SagaGroup(TyperGroup):
@@ -130,6 +131,15 @@ def main(
         "--open/--no-open",
         help="open the result in a browser (default: on; use --no-open to disable)",
     ),
+    videos: bool = typer.Option(
+        False,
+        "--videos/--no-videos",
+        help=(
+            "generate an AI demo video for each chapter (requires Node.js and "
+            "ANTHROPIC_API_KEY); videos are written to a sibling "
+            "<output>-videos/ directory"
+        ),
+    ),
 ) -> None:
     """Generate a self-contained PR saga as static HTML."""
     if ctx.invoked_subcommand is not None:
@@ -151,6 +161,7 @@ def main(
             pr = pr_diff(target)
             diff = pr.diff
             resolved_base, resolved_head, commit_sha = pr.base, pr.head, pr.head_sha
+            repo_root = None
         else:
             # Local mode: diff two refs straight from git.
             repo_root = repo_root_from(repo)
@@ -171,7 +182,34 @@ def main(
             model=model,
             intent=intent_text,
         )
-        html = render(saga, diff)
+    except SagaError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
+
+    video_paths: dict[str, str] | None = None
+    if videos:
+        if repo_root is None:
+            typer.echo(
+                "  warning: --videos is not supported for PR URL targets.", err=True
+            )
+        else:
+            abs_output = output.resolve()
+            videos_dir = abs_output.parent / f"{abs_output.stem}-videos"
+            typer.echo(
+                f"Generating videos for {len(saga.chapters)} chapters "
+                f"(writing to {videos_dir.name}/) …",
+                err=True,
+            )
+            video_paths = render_videos(saga, diff, videos_dir, model=model)
+            n = len(video_paths)
+            skipped = len(saga.chapters) - n
+            msg = f"Rendered {n} of {len(saga.chapters)} videos"
+            if skipped:
+                msg += f" ({skipped} skipped)"
+            typer.echo(msg + ".", err=True)
+
+    try:
+        html = render(saga, diff, video_paths=video_paths)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e

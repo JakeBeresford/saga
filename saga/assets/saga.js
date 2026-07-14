@@ -446,6 +446,10 @@
       '<button class="saga-btn saga-next"' + (i === chapters.length - 1 ? ' disabled' : '') + '>Next →</button>' +
       '</div>';
 
+    const videoEl = ch.video
+      ? '<video class="saga-chapter-video" src="' + esc(ch.video) + '" autoplay muted loop controls playsinline></video>'
+      : '';
+
     reader.innerHTML =
       navRow('saga-nav-top') +
       '<div class="saga-chapter-head">' +
@@ -454,6 +458,7 @@
       '<div class="saga-badges">' + badges(ch, isRead(ch.id)) + '</div>' +
       '</div>' +
       devBanner + lowBanner +
+      videoEl +
       '<div class="saga-narration">' + renderMarkdown(ch.narration) + '</div>' +
       qaLine +
       '<label class="saga-readmark"><input type="checkbox" id="saga-read-cb"' +

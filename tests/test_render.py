@@ -109,7 +109,7 @@ def test_render_escapes_angle_brackets_in_payload(
     """A diff containing ``</script>`` must be escaped so it cannot break out of
     the inlined ``<script>`` tag."""
 
-    def fake_payload(saga, diff):
+    def fake_payload(saga, diff, *, video_paths=None):
         return {
             "branch": "b",
             "base": "m",
