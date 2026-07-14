@@ -18,6 +18,7 @@ import pytest
 from pydantic import ValidationError
 
 import saga.generate as gen
+from saga.diff import compute_diff, rev_parse
 from saga.generate import (
     _MAX_ATTEMPTS,
     _MAX_CHAPTERS,
@@ -31,6 +32,12 @@ from saga.generate import (
     labeled_diff,
 )
 from saga.model import SagaError, parse_hunks
+
+
+def _diff_and_sha(repo: Path, base: str = "main", head: str = "feature"):
+    """The live diff + head sha for a repo fixture, for the new generate() shape."""
+    return compute_diff(repo, base, head), rev_parse(repo, head)
+
 
 # ---------------------------------------------------------------------------
 # Prompt assembly (pure)
@@ -147,8 +154,15 @@ def test_build_client_local_honors_base_url_override(monkeypatch):
 
 
 def test_generate_empty_diff_raises_before_any_network(empty_diff_repo: Path):
+    diff, sha = _diff_and_sha(empty_diff_repo)
     with pytest.raises(SagaError, match="No reviewable hunks"):
-        generate(empty_diff_repo, "main", "feature", model="anthropic/claude-opus-4-8")
+        generate(
+            diff,
+            base="main",
+            head="feature",
+            commit_sha=sha,
+            model="anthropic/claude-opus-4-8",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -162,8 +176,15 @@ def test_generate_full_saga_from_cassette(git_repo: Path, vcr_cassette, monkeypa
     if not os.environ.get("ANTHROPIC_API_KEY"):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-dummy")
 
+    diff, sha = _diff_and_sha(git_repo)
     with vcr_cassette.use_cassette("generate_anthropic.yaml"):
-        saga = generate(git_repo, "main", "feature", model="anthropic/claude-opus-4-8")
+        saga = generate(
+            diff,
+            base="main",
+            head="feature",
+            commit_sha=sha,
+            model="anthropic/claude-opus-4-8",
+        )
 
     assert saga.base == "main"
     assert saga.branch == "feature"
@@ -185,8 +206,15 @@ def test_generate_wraps_provider_errors_as_sagaerror(git_repo: Path, monkeypatch
             raise RuntimeError("upstream 529 overloaded")
 
     monkeypatch.setattr(gen, "_build_client", lambda model: BoomClient())
+    diff, sha = _diff_and_sha(git_repo)
     with pytest.raises(SagaError, match="Saga generation failed"):
-        generate(git_repo, "main", "feature", model="anthropic/claude-opus-4-8")
+        generate(
+            diff,
+            base="main",
+            head="feature",
+            commit_sha=sha,
+            model="anthropic/claude-opus-4-8",
+        )
 
 
 def test_cassette_is_scrubbed():
@@ -378,7 +406,10 @@ def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):
     # Coverage against git_repo's real hunks isn't the point of this test — the
     # stub chapters don't span them — so neutralize the check here.
     monkeypatch.setattr(gen, "validate_coverage", lambda chapters, hunks: None)
-    saga = generate(git_repo, "main", "feature", model="claude-cli/sonnet")
+    diff, sha = _diff_and_sha(git_repo)
+    saga = generate(
+        diff, base="main", head="feature", commit_sha=sha, model="claude-cli/sonnet"
+    )
     assert called["model"] == "claude-cli/sonnet"
     assert len(saga.chapters) >= 1
     # Saga-level headline/summary flow through; generation stamps the time.

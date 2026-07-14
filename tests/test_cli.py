@@ -20,19 +20,24 @@ def stub_pipeline(monkeypatch):
     """Stub generate() and render() and capture the args they were called with."""
     calls = {}
 
-    def fake_generate(repo_root, base, head, *, model, intent=None):
+    def fake_generate(diff, *, base, head, commit_sha, model, intent=None):
         calls["generate"] = dict(
-            repo_root=repo_root, base=base, head=head, model=model, intent=intent
+            diff=diff,
+            base=base,
+            head=head,
+            commit_sha=commit_sha,
+            model=model,
+            intent=intent,
         )
         return Saga(
             branch=head,
             base=base,
-            commit_sha="abc",
+            commit_sha=commit_sha or "abc",
             chapters=[Chapter(id="c1", title="t", summary="s", narration="n")],
         )
 
-    def fake_render(repo_root, saga):
-        calls["render"] = dict(repo_root=repo_root, saga=saga)
+    def fake_render(saga, diff):
+        calls["render"] = dict(saga=saga, diff=diff)
         return "<html>saga</html>"
 
     monkeypatch.setattr(cli, "generate", fake_generate)
@@ -161,6 +166,62 @@ def test_version_flag_prints_version_and_exits():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert result.output.strip() == f"saga {package_version('saga-cli')}"
+
+
+def test_main_pr_url_uses_pr_metadata(tmp_path, stub_pipeline, monkeypatch):
+    """A PR URL routes through gh (stubbed) and its base/head/sha drive the saga —
+    no local repo is consulted."""
+    from saga.diff import DiffResult, PRDiff
+
+    pr = PRDiff(
+        diff=DiffResult(diff_text="d", commits=["c"], diffstat=""),
+        base="release",
+        head="fix-branch",
+        head_sha="f" * 40,
+        url="https://github.com/o/r/pull/9",
+    )
+    captured = {}
+
+    def fake_pr_diff(target):
+        captured["target"] = target
+        return pr
+
+    monkeypatch.setattr(cli, "pr_diff", fake_pr_diff)
+
+    out = tmp_path / "o.html"
+    # Options after the positional URL must parse (`saga <url> --model …`).
+    result = runner.invoke(
+        app,
+        [
+            "https://github.com/o/r/pull/9",
+            "--model",
+            "openai/gpt-4o",
+            "-o",
+            str(out),
+            "--no-open",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert captured["target"] == "https://github.com/o/r/pull/9"
+    g = stub_pipeline["generate"]
+    assert g["base"] == "release"
+    assert g["head"] == "fix-branch"
+    assert g["commit_sha"] == "f" * 40
+    assert g["model"] == "openai/gpt-4o"
+    assert out.read_text() == "<html>saga</html>"
+
+
+def test_main_pr_error_maps_to_exit_1(tmp_path, monkeypatch):
+    def boom(target):
+        raise SagaError("gh CLI not found")
+
+    monkeypatch.setattr(cli, "pr_diff", boom)
+    result = runner.invoke(
+        app,
+        ["https://github.com/o/r/pull/9", "-o", str(tmp_path / "o.html"), "--no-open"],
+    )
+    assert result.exit_code == 1
+    assert "gh CLI not found" in result.output
 
 
 def test_main_model_flag_is_passed_through(git_repo: Path, tmp_path, stub_pipeline):

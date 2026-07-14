@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from urllib.request import urlopen
 
-from .diff import compute_diff
+from .diff import DiffResult
 from .model import Saga, parse_hunks, reconstruct_diff
 
 _ASSETS = Path(__file__).resolve().parent / "assets"
@@ -70,13 +70,13 @@ def _diffstat(diff_text: str) -> dict:
     return {"files": files, "added": added, "removed": removed}
 
 
-def build_payload(repo_root: Path, saga: Saga) -> dict:
+def build_payload(saga: Saga, diff: DiffResult) -> dict:
     """Attach each chapter's reconstructed diff to the saga for the client.
 
-    The hunk map is recomputed from the live diff of the saga's own
-    base...head, so every stored hunk id resolves to its current diff text.
+    The hunk map is built from the same *diff* generation used, so every stored
+    hunk id resolves to its diff text — whether the diff came from local git or
+    a fetched PR.
     """
-    diff = compute_diff(repo_root, saga.base, saga.branch)
     hmap = {h.id: h for h in parse_hunks(diff.diff_text)}
     chapters = []
     for ch in saga.chapters:
@@ -105,9 +105,9 @@ def _json_for_script(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
-def render(repo_root: Path, saga: Saga) -> str:
+def render(saga: Saga, diff: DiffResult) -> str:
     """Build the complete self-contained HTML document for *saga*."""
-    payload = build_payload(repo_root, saga)
+    payload = build_payload(saga, diff)
     title = f"{html.escape(saga.title) or 'Saga'} · {html.escape(saga.branch)}"
     styles = "\n".join(
         [

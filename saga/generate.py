@@ -33,7 +33,7 @@ from typing import Literal
 import instructor
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from .diff import DiffResult, compute_diff, rev_parse
+from .diff import DiffResult
 from .model import (
     Chapter,
     Hunk,
@@ -278,19 +278,23 @@ def _generate_via_claude_cli(
 
 
 def generate(
-    repo_root: Path,
+    diff: DiffResult,
+    *,
     base: str,
     head: str,
-    *,
+    commit_sha: str,
     model: str,
     intent: str | None = None,
 ) -> Saga:
-    """Generate the saga for *base*...*head*.
+    """Generate the saga for an already-computed *diff*.
+
+    ``base``/``head`` label the change set (they may be local refs or a PR's
+    branch names) and ``commit_sha`` identifies the head. Keeping the diff a
+    parameter makes generation source-agnostic — local git or a fetched PR.
 
     Raises ``SagaError`` on an empty diff, a provider/model error, or a
     coverage gap. The caller renders the error as a user-facing message.
     """
-    diff = compute_diff(repo_root, base, head)
     hunks = parse_hunks(diff.diff_text)
     if not hunks:
         raise SagaError("No reviewable hunks in this change set.")
@@ -333,7 +337,7 @@ def generate(
     return Saga(
         branch=head,
         base=base,
-        commit_sha=rev_parse(repo_root, head),
+        commit_sha=commit_sha,
         generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
         title=result.title,
         summary=result.summary,

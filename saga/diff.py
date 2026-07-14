@@ -1,14 +1,18 @@
-"""Git-sourced diff computation for a saga.
+"""Diff computation for a saga, from local git refs or a GitHub PR.
 
-Computes the diff of a head ref against a base ref purely from git — no
-checkout, no working-tree changes. Stdlib + the ``git`` CLI only.
+``compute_diff`` builds the diff of a head ref against a base ref purely from
+git — no checkout, no working-tree changes. ``pr_diff`` fetches the same shape
+for a pull request through the ``gh`` CLI. Stdlib + the ``git``/``gh`` CLIs only.
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+from .model import SagaError
 
 
 @dataclass
@@ -96,3 +100,70 @@ def repo_root_from(path: Path) -> Path | None:
         cwd=path,
     )
     return Path(result.stdout.strip()) if result.returncode == 0 else None
+
+
+# ---------------------------------------------------------------------------
+# Pull-request diffs (via the ``gh`` CLI)
+# ---------------------------------------------------------------------------
+
+# Metadata gh returns for a PR: the base/head branch names, the head commit, the
+# commit list, and the canonical URL.
+_PR_VIEW_FIELDS = "baseRefName,headRefName,headRefOid,commits,url"
+
+
+@dataclass
+class PRDiff:
+    """A pull request's diff plus the identity a saga needs, fetched from GitHub."""
+
+    diff: DiffResult
+    base: str
+    head: str
+    head_sha: str
+    url: str
+
+
+def _gh(*args: str) -> subprocess.CompletedProcess[str]:
+    """Run the ``gh`` CLI (mirrors ``_git``); cwd is the current directory.
+
+    A full PR URL is self-contained, so no repo checkout is needed; a bare PR
+    number or branch resolves against the repo the command is run from.
+    """
+    return subprocess.run(["gh", *args], capture_output=True, text=True)
+
+
+def pr_diff(pr: str) -> PRDiff:
+    """Fetch a pull request's diff and metadata through the ``gh`` CLI.
+
+    *pr* is anything ``gh`` accepts — most usefully a full PR URL, which works
+    from any directory. Raises ``SagaError`` if ``gh`` is missing or the PR
+    cannot be read (not found, no access, not authenticated).
+    """
+    try:
+        diff_result = _gh("pr", "diff", pr)
+        view_result = _gh("pr", "view", pr, "--json", _PR_VIEW_FIELDS)
+    except FileNotFoundError as e:
+        raise SagaError(
+            "gh CLI not found. Install the GitHub CLI and authenticate "
+            "(https://cli.github.com), or generate from local refs instead."
+        ) from e
+
+    if diff_result.returncode != 0:
+        raise SagaError(f"could not fetch PR diff: {diff_result.stderr.strip()}")
+    if view_result.returncode != 0:
+        raise SagaError(f"could not fetch PR details: {view_result.stderr.strip()}")
+
+    try:
+        meta = json.loads(view_result.stdout)
+        # Mirror `git log --oneline`: short sha + subject, oldest-first as gh returns.
+        commits = [
+            f"{c['oid'][:9]} {c['messageHeadline']}" for c in meta.get("commits", [])
+        ]
+        return PRDiff(
+            diff=DiffResult(diff_text=diff_result.stdout, commits=commits, diffstat=""),
+            base=meta["baseRefName"],
+            head=meta["headRefName"],
+            head_sha=meta["headRefOid"],
+            url=meta["url"],
+        )
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise SagaError(f"unexpected gh pr view output: {e}") from e
