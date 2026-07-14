@@ -17,6 +17,12 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
 .d2h-file-diff { background: var(--bg); }
 .d2h-code-line-ctn, .d2h-code-line { background: var(--bg) !important; color: var(--text) !important; }
 .d2h-code-linenumber { background: var(--surface) !important; color: var(--text-faint) !important; border-color: var(--line) !important; }
+/* Wrap long lines instead of overflowing the file wrapper (its overflow:hidden
+   was clipping them). diff2html defaults to a fixed-width nowrap/pre line; here
+   the code line fills its cell and wraps, hang-indented past the
+   absolutely-positioned line-number gutter (~7.5em wide). */
+.d2h-code-line { display: block; width: auto; padding: 0 1em 0 8em; white-space: normal; }
+.d2h-code-line-ctn { display: inline; width: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .d2h-del { background: var(--diff-del-bg) !important; }
 .d2h-ins { background: var(--diff-add-bg) !important; }
 .d2h-del .d2h-code-line-ctn { background: var(--diff-del-bg) !important; }
