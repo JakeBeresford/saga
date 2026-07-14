@@ -1,9 +1,9 @@
 /* Saga — design tokens ("instrument ink").
  *
  * Single source of truth for the saga page. A cool CYAN accent means
- * "a human can act here" (links, focus), and a strict three-light status system
- * — green (clear) · amber (attention) · red (deviation) — is reserved for the
- * agent's own state and never used as chrome.
+ * "a human can act here" (links, focus), and a two-light status system
+ * — green (clear) · amber (attention) — signals the agent's own state and is
+ * never used as chrome. Red is reserved for errors and destructive actions.
  *
  * Every colour is a light-dark(light, dark) pair. The page follows the OS by
  * default (color-scheme: light dark); the reader's toggle forces a scheme by
@@ -49,12 +49,11 @@
   --warn-ink:   light-dark(#ffffff, #1b1200);  /* text on a solid amber fill */
   --warn-tint:  light-dark(rgba(154,103,0,0.12), rgba(224,168,62,0.15));
 
-  --danger:        light-dark(#c62828, #f2685f);   /* deviation               */
+  --danger:        light-dark(#c62828, #f2685f);   /* errors, destructive     */
   --danger-bright: light-dark(#a51f1f, #ff9c94);
   --danger-ink:    light-dark(#5c1512, #ffe1de);   /* text on a loud red fill */
   --danger-tint:   light-dark(rgba(198,40,40,0.10), rgba(242,104,95,0.14));
-  --danger-loud:   light-dark(#fbe3e1, #b62324);   /* loud deviation fill     */
-  --danger-loud-bg:light-dark(#fdecea, #3d1518);   /* loud deviation panel bg */
+  --danger-loud-bg:light-dark(#fdecea, #3d1518);   /* error panel bg          */
   --danger-loud-border:light-dark(#c62828, #f2685f);
 
   /* --- diff shading (derived from status hues) --- */
@@ -129,7 +128,7 @@
 /* --- signature: the status rail ------------------------------------
  * A thin backlit edge across the top of the page. It shifts colour to
  * the most important state present:
- * accent (idle) · green (clear) · amber (attention) · red (deviation).
+ * accent (idle) · green (clear) · amber (attention).
  */
 .saga-rail {
   height: 2px;
@@ -138,4 +137,3 @@
 }
 .saga-rail-ok   { --rail: var(--ok); }
 .saga-rail-attn { --rail: var(--warn); }
-.saga-rail-dev  { --rail: var(--danger); }

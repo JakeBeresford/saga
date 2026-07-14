@@ -25,8 +25,8 @@ Your job: partition the diff into an **ordered list of chapters** that tell one 
 - `narration` — **2–4 short sentences, plain language.** The intent, the key decision, and the rationale. The reviewer does not want a wall of text — be brief and concrete. Markdown is allowed but keep it light.
 - `hunks` — the list of hunk ids in this chapter, in reading order.
 - `plan_step` — when an intent document was supplied, the step/section this chapter maps to (e.g. `"PR 1: …"`); otherwise `null`.
-- `confidence` — `"high"`, `"medium"`, or `"low"`. Use `"low"` honestly for anything that deserves close review.
-- `deviation` — `null` unless an intent was supplied _and_ the implementation diverged from it; then a short sentence explaining how and why. Be honest — deviations are highlighted for the reviewer.
+- `confidence` — how sure you are that you correctly understood this chapter's intent and change. `"medium"` is the default. Use `"low"` only when you are genuinely unsure — the intent is ambiguous, or the code is subtle enough you may have misread it — so the reviewer knows to read closely rather than trust your summary. Keep `"low"` rare; over-flagging drains its meaning. Use `"high"` when the change is clear.
+- `deviation` — `null` unless an intent was supplied _and_ the implementation diverged from it; then a short sentence on how and why it differs. This is informational, not a criticism — plans change; it just flags the difference so the reviewer can confirm it was intentional.
 - `qa` — a manual-QA recommendation for the reviewer. Use `null` when this chapter's changes appear well-covered by automated tests in the diff, so no manual QA is needed. Otherwise, a short sentence recommending what to check by hand — e.g. a visual/interaction check for front-end changes, or specific manual steps for anything hard to cover automatically (external integrations, migrations, environment-specific behavior).
 
 ## Output
