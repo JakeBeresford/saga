@@ -237,6 +237,11 @@
 .saga-file-cmt-panel[hidden] { display: none; }
 .saga-file-cmt-panel .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
 
+/* The clickable file path in a diff header inherits diff2html's file-name colour;
+   only the hover underline distinguishes it, keeping the header uncluttered. */
+.saga-file-link { color: inherit; text-decoration: none; }
+.saga-file-link:hover { text-decoration: underline; }
+
 /* --- narrow screens: tighten the reader gutter (the 1000px max-width already
    goes fluid below that width) and shrink the chapter title. --- */
 @media (max-width: 640px) {

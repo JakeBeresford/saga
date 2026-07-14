@@ -21,6 +21,7 @@ Pass --intent PATH to give the model a plan/spec for richer, plan-aware narratio
 
 from __future__ import annotations
 
+import os
 import webbrowser
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -40,6 +41,29 @@ from .diff import (
 from .generate import generate
 from .model import SagaError
 from .render import render
+
+# GUI editors that register a URL protocol, so a browser can open a file in
+# them via <scheme>://file/<abs-path>. Keyed by the binary $EDITOR/$VISUAL names.
+_EDITOR_SCHEMES = {
+    "code": "vscode",
+    "code-insiders": "vscode-insiders",
+    "codium": "vscodium",
+    "cursor": "cursor",
+    "windsurf": "windsurf",
+}
+
+
+def _editor_scheme() -> str:
+    """URL scheme for the diff's file-path links, inferred from ``$VISUAL``/``$EDITOR``.
+
+    Only editors that register a URL protocol can be opened from a browser, so an
+    unrecognised or terminal editor (vim, nano, …) falls back to ``file`` — the OS
+    default handler. ``$EDITOR`` may carry a path and flags (``/usr/bin/code -w``),
+    so we match on the bare binary name.
+    """
+    raw = os.environ.get("VISUAL") or os.environ.get("EDITOR") or ""
+    binary = Path(raw.split()[0]).name if raw.strip() else ""
+    return _EDITOR_SCHEMES.get(binary, "file")
 
 
 class SagaGroup(TyperGroup):
@@ -151,6 +175,12 @@ def main(
             pr = pr_diff(target)
             diff = pr.diff
             resolved_base, resolved_head, commit_sha = pr.base, pr.head, pr.head_sha
+            # No local checkout, so link file paths to the file on GitHub at the
+            # PR's head commit (repo URL is the PR URL minus its /pull/<n> tail).
+            file_links = {
+                "type": "github",
+                "base": f"{pr.url.split('/pull/')[0]}/blob/{pr.head_sha}",
+            }
         else:
             # Local mode: diff two refs straight from git.
             repo_root = repo_root_from(repo)
@@ -161,6 +191,12 @@ def main(
             resolved_head = current_branch(repo_root) if head == "HEAD" else head
             diff = compute_diff(repo_root, resolved_base, resolved_head)
             commit_sha = rev_parse(repo_root, resolved_head)
+            # Link file paths to the local file, opened in the reader's editor.
+            file_links = {
+                "type": "local",
+                "root": str(repo_root),
+                "scheme": _editor_scheme(),
+            }
 
         typer.echo(f"Generating saga for {resolved_base}...{resolved_head} …", err=True)
         saga = generate(
@@ -171,7 +207,7 @@ def main(
             model=model,
             intent=intent_text,
         )
-        html = render(saga, diff)
+        html = render(saga, diff, file_links=file_links)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e

@@ -70,12 +70,14 @@ def _diffstat(diff_text: str) -> dict:
     return {"files": files, "added": added, "removed": removed}
 
 
-def build_payload(saga: Saga, diff: DiffResult) -> dict:
+def build_payload(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> dict:
     """Attach each chapter's reconstructed diff to the saga for the client.
 
     The hunk map is built from the same *diff* generation used, so every stored
     hunk id resolves to its diff text — whether the diff came from local git or
-    a fetched PR.
+    a fetched PR. *file_links* tells the client how to turn each diff file path
+    into a link (a local editor/file URL, or a GitHub blob URL); ``None`` leaves
+    the paths as plain text.
     """
     hmap = {h.id: h for h in parse_hunks(diff.diff_text)}
     chapters = []
@@ -92,6 +94,7 @@ def build_payload(saga: Saga, diff: DiffResult) -> dict:
         "generated_at": saga.generated_at,
         "verdict": saga.verdict(),
         "stats": _diffstat(diff.diff_text),
+        "file_links": file_links,
         "chapters": chapters,
     }
 
@@ -105,9 +108,9 @@ def _json_for_script(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
-def render(saga: Saga, diff: DiffResult) -> str:
+def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
     """Build the complete self-contained HTML document for *saga*."""
-    payload = build_payload(saga, diff)
+    payload = build_payload(saga, diff, file_links)
     title = f"{html.escape(saga.title) or 'Saga'} · {html.escape(saga.branch)}"
     styles = "\n".join(
         [

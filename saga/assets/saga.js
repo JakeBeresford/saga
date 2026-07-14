@@ -242,12 +242,44 @@
     btn.addEventListener('click', () => { panel.hidden = !panel.hidden; });
   }
 
+  // Build a link for a diff file path — a local editor/file URL or a GitHub blob
+  // URL, per data.file_links — or null when there is nothing to link to.
+  function fileURL(path) {
+    const fl = data.file_links;
+    if (!fl) return null;
+    // diff2html shows renames as "old → new"; link the new path.
+    const rel = path.split(' → ').pop().trim();
+    if (fl.type === 'github') {
+      return fl.base + '/' + rel.split('/').map(encodeURIComponent).join('/');
+    }
+    const abs = fl.root.replace(/\/+$/, '') + '/' + rel;
+    return (fl.scheme === 'file' ? 'file://' : fl.scheme + '://file') + encodeURI(abs);
+  }
+
+  // Turn a diff2html file name into a link that opens the file (editor/GitHub).
+  function linkifyFileName(fw, path) {
+    const url = fileURL(path);
+    if (!url) return;
+    const nameEl = fw.querySelector('.d2h-file-name');
+    if (!nameEl || nameEl.querySelector('a.saga-file-link')) return;
+    const a = document.createElement('a');
+    a.className = 'saga-file-link';
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = 'Open ' + path;
+    a.textContent = nameEl.textContent;
+    nameEl.textContent = '';
+    nameEl.appendChild(a);
+  }
+
   // After a chapter's diff is drawn, make its lines and files commentable.
   function wireComments(container) {
     container.querySelectorAll('.d2h-file-wrapper').forEach((fw) => {
       const nameEl = fw.querySelector('.d2h-file-name');
       const path = nameEl ? nameEl.textContent.trim() : '';
       if (!path) return;
+      linkifyFileName(fw, path);
       wireFileComment(fw, path);
       fw.querySelectorAll('tr').forEach((tr) => {
         const lnCell = tr.querySelector('td.d2h-code-linenumber');
