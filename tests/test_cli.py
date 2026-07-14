@@ -36,8 +36,8 @@ def stub_pipeline(monkeypatch):
             chapters=[Chapter(id="c1", title="t", summary="s", narration="n")],
         )
 
-    def fake_render(saga, diff):
-        calls["render"] = dict(saga=saga, diff=diff)
+    def fake_render(saga, diff, file_links=None):
+        calls["render"] = dict(saga=saga, diff=diff, file_links=file_links)
         return "<html>saga</html>"
 
     monkeypatch.setattr(cli, "generate", fake_generate)
@@ -68,6 +68,33 @@ def test_main_happy_path_writes_output(git_repo: Path, tmp_path: Path, stub_pipe
     assert stub_pipeline["generate"]["base"] == "main"
     assert stub_pipeline["generate"]["head"] == "feature"
     assert stub_pipeline["generate"]["intent"] is None
+
+
+def test_main_local_file_links_use_editor_scheme(
+    git_repo: Path, tmp_path, stub_pipeline, monkeypatch
+):
+    """A local saga links each path to the file, opened in the reader's editor."""
+    monkeypatch.setenv("EDITOR", "/usr/local/bin/code --wait")
+    monkeypatch.delenv("VISUAL", raising=False)
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    )
+    assert result.exit_code == 0
+    fl = stub_pipeline["render"]["file_links"]
+    assert fl == {"type": "local", "root": str(git_repo), "scheme": "vscode"}
+
+
+def test_main_unknown_editor_falls_back_to_file_scheme(
+    git_repo: Path, tmp_path, stub_pipeline, monkeypatch
+):
+    """A terminal/unrecognised $EDITOR can't be opened from a browser, so file://."""
+    monkeypatch.setenv("EDITOR", "vim")
+    monkeypatch.delenv("VISUAL", raising=False)
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    )
+    assert result.exit_code == 0
+    assert stub_pipeline["render"]["file_links"]["scheme"] == "file"
 
 
 def test_main_resolves_head_from_current_branch(
@@ -209,6 +236,11 @@ def test_main_pr_url_uses_pr_metadata(tmp_path, stub_pipeline, monkeypatch):
     assert g["commit_sha"] == "f" * 40
     assert g["model"] == "openai/gpt-4o"
     assert out.read_text() == "<html>saga</html>"
+    # No local checkout, so file paths link to the file on GitHub at the head sha.
+    assert stub_pipeline["render"]["file_links"] == {
+        "type": "github",
+        "base": "https://github.com/o/r/blob/" + "f" * 40,
+    }
 
 
 def test_main_pr_error_maps_to_exit_1(tmp_path, monkeypatch):

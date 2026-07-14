@@ -78,6 +78,17 @@ def test_render_uses_saga_title_in_document_and_head(git_repo: Path, stub_vendor
     assert "<title>Add goal mailbox entry point · feature</title>" in html
 
 
+def test_build_payload_carries_file_links(git_repo: Path):
+    """file_links travels to the client verbatim (defaulting to None when absent)."""
+    assert render_mod.build_payload(_saga_for(), _feature_diff(git_repo))[
+        "file_links"
+    ] is None
+
+    fl = {"type": "local", "root": "/repo", "scheme": "vscode"}
+    payload = render_mod.build_payload(_saga_for(), _feature_diff(git_repo), fl)
+    assert payload["file_links"] == fl
+
+
 def test_build_payload_skips_unknown_hunk_ids(git_repo: Path):
     """A chapter referencing a hunk id absent from the live diff must not crash;
     the unknown id is simply dropped from the reconstructed diff."""
@@ -109,7 +120,7 @@ def test_render_escapes_angle_brackets_in_payload(
     """A diff containing ``</script>`` must be escaped so it cannot break out of
     the inlined ``<script>`` tag."""
 
-    def fake_payload(saga, diff):
+    def fake_payload(saga, diff, file_links=None):
         return {
             "branch": "b",
             "base": "m",
