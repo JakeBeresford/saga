@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -87,6 +88,10 @@ def _chapter_limit_message(n: int) -> str:
 
 
 class _SagaOut(BaseModel):
+    # Saga-level headline + one-line summary for the page header. Defaulted so an
+    # older model (or replayed cassette) that omits them still validates.
+    title: str = ""
+    summary: str = ""
     chapters: list[_ChapterOut]
 
     @model_validator(mode="after")
@@ -329,5 +334,8 @@ def generate(
         branch=head,
         base=base,
         commit_sha=rev_parse(repo_root, head),
+        generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        title=result.title,
+        summary=result.summary,
         chapters=chapters,
     )

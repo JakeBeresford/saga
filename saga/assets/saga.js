@@ -303,18 +303,60 @@
     chapters = data.chapters || [];
     comments = loadComments();
     initTheme();
-    renderVerdict(data.verdict);
+    renderHead();
+    renderVerdict(data.verdict, data.stats);
     renderTOC();
+  }
+
+  // --- header (title, summary, provenance) ----------------------------
+
+  function renderHead() {
+    if (data.title) $('saga-title').textContent = data.title;
+    const sum = $('saga-summary');
+    if (sum && data.summary) { sum.textContent = data.summary; sum.hidden = false; }
+    const meta = $('saga-meta');
+    if (meta) {
+      const parts = [];
+      if (data.commit_sha) parts.push(data.commit_sha.slice(0, 7));
+      const rel = relativeTime(data.generated_at);
+      if (rel) parts.push('generated ' + rel);
+      meta.textContent = parts.join(' · ');
+    }
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return '';
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return '';
+    const secs = Math.round((Date.now() - then) / 1000);
+    if (secs < 60) return 'just now';
+    const units = [['year', 31536000], ['month', 2592000], ['week', 604800],
+                   ['day', 86400], ['hour', 3600], ['minute', 60]];
+    for (const [name, size] of units) {
+      const n = Math.floor(secs / size);
+      if (n >= 1) return n + ' ' + name + (n === 1 ? '' : 's') + ' ago';
+    }
+    return 'just now';
   }
 
   // --- verdict line --------------------------------------------------
 
-  function renderVerdict(v) {
+  function renderVerdict(v, stats) {
     if (!v) return;
-    const parts = [v.chapters + (v.chapters === 1 ? ' chapter' : ' chapters')];
-    if (v.deviations > 0) parts.push(v.deviations + (v.deviations === 1 ? ' differs from plan' : ' differ from plan'));
-    if (v.low_confidence > 0) parts.push(v.low_confidence + (v.low_confidence === 1 ? ' needs a closer look' : ' need a closer look'));
-    $('saga-verdict').textContent = parts.join(' · ');
+    // Scope segments read neutral; attention flags echo the amber rail so a
+    // reviewer can spot what needs a look. All text is generated (no user
+    // content), so building innerHTML here is injection-safe.
+    const seg = [{ t: v.chapters + (v.chapters === 1 ? ' chapter' : ' chapters') }];
+    if (stats && stats.files) seg.push({ t: stats.files + (stats.files === 1 ? ' file' : ' files') });
+    if (stats && (stats.added || stats.removed)) {
+      seg.push({ html: '<span class="saga-add">+' + (stats.added || 0) + '</span> ' +
+                       '<span class="saga-del">−' + (stats.removed || 0) + '</span>' });
+    }
+    if (v.deviations > 0) seg.push({ t: v.deviations + (v.deviations === 1 ? ' differs from plan' : ' differ from plan'), flag: true });
+    if (v.low_confidence > 0) seg.push({ t: v.low_confidence + (v.low_confidence === 1 ? ' needs a closer look' : ' need a closer look'), flag: true });
+    $('saga-verdict').innerHTML = seg
+      .map((s) => (s.html ? s.html : s.flag ? '<span class="saga-flag">' + s.t + '</span>' : s.t))
+      .join(' · ');
     // Two-tier status rail: amber when anything is flagged, else green.
     const rail = $('saga-rail');
     if (rail) {

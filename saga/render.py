@@ -9,6 +9,7 @@ under ``.assets-cache/`` next to the package.
 
 from __future__ import annotations
 
+import html
 import json
 import os
 from pathlib import Path
@@ -52,6 +53,23 @@ def _asset(name: str) -> str:
     return (_ASSETS / name).read_text()
 
 
+def _diffstat(diff_text: str) -> dict:
+    """Files-changed and line counts scanned straight from the unified diff.
+
+    Files are counted by ``diff --git`` headers (so renames/mode-only changes
+    still count); added/removed exclude the ``+++``/``---`` file markers.
+    """
+    files = added = removed = 0
+    for line in diff_text.splitlines():
+        if line.startswith("diff --git "):
+            files += 1
+        elif line.startswith("+") and not line.startswith("+++"):
+            added += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            removed += 1
+    return {"files": files, "added": added, "removed": removed}
+
+
 def build_payload(repo_root: Path, saga: Saga) -> dict:
     """Attach each chapter's reconstructed diff to the saga for the client.
 
@@ -68,7 +86,12 @@ def build_payload(repo_root: Path, saga: Saga) -> dict:
     return {
         "branch": saga.branch,
         "base": saga.base,
+        "title": saga.title,
+        "summary": saga.summary,
+        "commit_sha": saga.commit_sha,
+        "generated_at": saga.generated_at,
         "verdict": saga.verdict(),
+        "stats": _diffstat(diff.diff_text),
         "chapters": chapters,
     }
 
@@ -85,7 +108,7 @@ def _json_for_script(payload: dict) -> str:
 def render(repo_root: Path, saga: Saga) -> str:
     """Build the complete self-contained HTML document for *saga*."""
     payload = build_payload(repo_root, saga)
-    title = f"Saga · {saga.branch}"
+    title = f"{html.escape(saga.title) or 'Saga'} · {html.escape(saga.branch)}"
     styles = "\n".join(
         [
             _asset("tokens.css"),
@@ -127,12 +150,14 @@ try {{
   <button id="saga-theme" class="saga-theme-toggle" type="button"
           aria-label="Toggle light or dark theme" title="Toggle theme"></button>
   <nav class="saga-crumbs">
-    <span class="saga-crumb-current">Saga</span>
-    <span class="saga-crumb-sep">&rsaquo;</span>
     <span class="mono">{saga.base}...{saga.branch}</span>
   </nav>
-  <h1>Saga</h1>
-  <div id="saga-verdict" class="saga-verdict"></div>
+  <h1 id="saga-title">Saga</h1>
+  <p id="saga-summary" class="saga-summary" hidden></p>
+  <div class="saga-statusline">
+    <div id="saga-verdict" class="saga-verdict"></div>
+    <div id="saga-meta" class="saga-meta"></div>
+  </div>
 </div>
 <div id="saga-notice"></div>
 <div id="saga-toc" class="saga-toc"></div>

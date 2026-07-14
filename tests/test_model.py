@@ -163,6 +163,8 @@ def test_saga_dict_roundtrip():
         base="main",
         commit_sha="abc123",
         generated_at="2026-07-11T00:00:00Z",
+        title="Add the thing",
+        summary="A one-line summary of the change.",
         chapters=[
             Chapter(id="c1", title="t", summary="s", narration="n", hunks=["h0"])
         ],

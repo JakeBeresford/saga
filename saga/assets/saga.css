@@ -13,16 +13,42 @@
 }
 .saga-theme-toggle:hover { border-color: var(--accent); color: var(--text); }
 
-.saga-crumbs { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 10px; }
+.saga-crumbs { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 8px; }
 .saga-crumbs a { color: var(--accent); text-decoration: none; }
 .saga-crumbs a:hover { color: var(--accent-bright); text-decoration: underline; }
-.saga-crumb-sep { margin: 0 8px; color: var(--text-faint); }
-.saga-crumb-current { color: var(--text); }
+
+.header h1 { line-height: 1.2; }
+
+.saga-summary {
+  color: var(--text-dim);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.saga-statusline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
 
 .saga-verdict {
   color: var(--text-dim);
   font-size: var(--fs-sm);
-  margin-top: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+.saga-verdict .saga-flag { color: var(--warn); }
+/* diff add/remove hues, matching the diff body's green/red */
+.saga-verdict .saga-add { color: var(--ok); }
+.saga-verdict .saga-del { color: var(--danger); }
+
+.saga-meta {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
   letter-spacing: var(--tracking-mono);
 }

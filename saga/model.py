@@ -184,6 +184,8 @@ class Saga:
     base: str
     commit_sha: str
     generated_at: str = ""
+    title: str = ""
+    summary: str = ""
     chapters: list[Chapter] = field(default_factory=list)
 
     @classmethod
@@ -193,6 +195,8 @@ class Saga:
             base=d.get("base", ""),
             commit_sha=d.get("commit_sha", ""),
             generated_at=d.get("generated_at", ""),
+            title=d.get("title", ""),
+            summary=d.get("summary", ""),
             chapters=[Chapter.from_dict(c) for c in d.get("chapters", [])],
         )
 
@@ -202,6 +206,8 @@ class Saga:
             "base": self.base,
             "commit_sha": self.commit_sha,
             "generated_at": self.generated_at,
+            "title": self.title,
+            "summary": self.summary,
             "chapters": [c.to_dict() for c in self.chapters],
         }
 
