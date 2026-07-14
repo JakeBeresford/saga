@@ -53,7 +53,10 @@ def _validate(data: object) -> dict:
     for fpath, entry in files.items():
         if not isinstance(entry, dict):
             raise SagaError(f"file entry for {fpath} must be an object.")
-        for c in entry.get("inline", []):
+        inline = entry.get("inline", [])
+        if not isinstance(inline, list):
+            raise SagaError(f"'inline' for {fpath} must be a list.")
+        for c in inline:
             if not isinstance(c, dict) or "line" not in c or "body" not in c:
                 raise SagaError(
                     f"inline comment on {fpath} needs a 'line' and a 'body'."

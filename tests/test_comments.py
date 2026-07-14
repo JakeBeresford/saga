@@ -179,9 +179,9 @@ def test_decode_payload_rejects_base64_of_non_json():
         decode_payload(base64.b64encode(b"not json").decode())
 
 
-def test_read_from_data_ignores_missing_file(capsys):
+def test_read_from_data_ignores_missing_file(tmp_path, capsys):
     # --data wins and no file is touched.
-    rc = read("does-not-exist.json", data=_encode(SIDECAR))
+    rc = read(tmp_path / "does-not-exist.json", data=_encode(SIDECAR))
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["overall"] == "Overall this is solid."
