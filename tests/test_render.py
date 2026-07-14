@@ -80,9 +80,10 @@ def test_render_uses_saga_title_in_document_and_head(git_repo: Path, stub_vendor
 
 def test_build_payload_carries_file_links(git_repo: Path):
     """file_links travels to the client verbatim (defaulting to None when absent)."""
-    assert render_mod.build_payload(_saga_for(), _feature_diff(git_repo))[
-        "file_links"
-    ] is None
+    assert (
+        render_mod.build_payload(_saga_for(), _feature_diff(git_repo))["file_links"]
+        is None
+    )
 
     fl = {"type": "local", "root": "/repo", "scheme": "vscode"}
     payload = render_mod.build_payload(_saga_for(), _feature_diff(git_repo), fl)
