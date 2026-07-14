@@ -9,6 +9,11 @@ want to review:
 
     saga --base main --head my-feature -o saga.html --open
 
+Or point it straight at a pull request by URL (via the ``gh`` CLI; no checkout
+needed, works from any directory):
+
+    saga https://github.com/owner/repo/pull/5 --model openai/gpt-4o
+
 Defaults: base=auto-detected (e.g. origin/main), head=current branch (HEAD),
 output=saga.html, model=anthropic/claude-opus-4-8 (override --model or $SAGA_MODEL).
 Pass --intent PATH to give the model a plan/spec for richer, plan-aware narration.
@@ -21,17 +26,49 @@ from importlib.metadata import version as package_version
 from pathlib import Path
 
 import typer
+from typer.core import TyperArgument, TyperGroup
 
 from .comments import comments_app
-from .diff import current_branch, default_base, repo_root_from
+from .diff import (
+    compute_diff,
+    current_branch,
+    default_base,
+    pr_diff,
+    repo_root_from,
+    rev_parse,
+)
 from .generate import generate
 from .model import SagaError
 from .render import render
+
+
+class SagaGroup(TyperGroup):
+    """Let the top-level command take an optional positional target (a PR URL)
+    while still dispatching subcommands like ``saga comments``.
+
+    Click would otherwise make the group's positional argument swallow a
+    subcommand name, and it forbids options after a positional. So: when the
+    first token names a subcommand, drop the positional for that parse; otherwise
+    allow options to follow the target (``saga <url> --model …``).
+    """
+
+    def parse_args(self, ctx, args):
+        if args and args[0] in self.commands:
+            saved = self.params
+            self.params = [p for p in saved if not isinstance(p, TyperArgument)]
+            try:
+                return super().parse_args(ctx, args)
+            finally:
+                self.params = saved
+        ctx.allow_interspersed_args = True
+        return super().parse_args(ctx, args)
+
 
 app = typer.Typer(
     name="saga",
     help="Generate a self-contained PR saga as static HTML.",
     add_completion=False,
+    cls=SagaGroup,
 )
 app.add_typer(comments_app, name="comments")
 
@@ -45,6 +82,14 @@ def _version_callback(value: bool) -> None:
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
+    target: str | None = typer.Argument(
+        None,
+        help=(
+            "a GitHub PR URL to build a saga for "
+            "(e.g. https://github.com/owner/repo/pull/5); "
+            "omit to use local git refs"
+        ),
+    ),
     version: bool = typer.Option(
         False,
         "--version",
@@ -90,11 +135,6 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
-    repo_root = repo_root_from(repo)
-    if repo_root is None:
-        typer.echo(f"error: {repo} is not inside a git repository.", err=True)
-        raise typer.Exit(1)
-
     intent_text = None
     if intent is not None:
         try:
@@ -103,14 +143,35 @@ def main(
             typer.echo(f"error: could not read intent file: {e}", err=True)
             raise typer.Exit(1) from e
 
-    resolved_base = base if base is not None else default_base(repo_root)
-    resolved_head = current_branch(repo_root) if head == "HEAD" else head
-    typer.echo(f"Generating saga for {resolved_base}...{resolved_head} …", err=True)
     try:
+        if target is not None:
+            # PR mode: fetch the diff from GitHub; base/head/sha come from the PR,
+            # so --base/--head and a local checkout are not needed.
+            typer.echo(f"Fetching PR {target} …", err=True)
+            pr = pr_diff(target)
+            diff = pr.diff
+            resolved_base, resolved_head, commit_sha = pr.base, pr.head, pr.head_sha
+        else:
+            # Local mode: diff two refs straight from git.
+            repo_root = repo_root_from(repo)
+            if repo_root is None:
+                typer.echo(f"error: {repo} is not inside a git repository.", err=True)
+                raise typer.Exit(1)
+            resolved_base = base if base is not None else default_base(repo_root)
+            resolved_head = current_branch(repo_root) if head == "HEAD" else head
+            diff = compute_diff(repo_root, resolved_base, resolved_head)
+            commit_sha = rev_parse(repo_root, resolved_head)
+
+        typer.echo(f"Generating saga for {resolved_base}...{resolved_head} …", err=True)
         saga = generate(
-            repo_root, resolved_base, resolved_head, model=model, intent=intent_text
+            diff,
+            base=resolved_base,
+            head=resolved_head,
+            commit_sha=commit_sha,
+            model=model,
+            intent=intent_text,
         )
-        html = render(repo_root, saga)
+        html = render(saga, diff)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e

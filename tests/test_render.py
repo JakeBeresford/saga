@@ -6,7 +6,13 @@ from pathlib import Path
 import pytest
 
 import saga.render as render_mod
+from saga.diff import compute_diff
 from saga.model import Chapter, Saga
+
+
+def _feature_diff(git_repo: Path):
+    """The git_repo fixture's live main...feature diff, passed into render."""
+    return compute_diff(git_repo, "main", "feature")
 
 
 def _saga_for(git_repo_branch: str = "feature") -> Saga:
@@ -38,7 +44,7 @@ def stub_vendored(monkeypatch):
 
 
 def test_build_payload_attaches_reconstructed_diffs(git_repo: Path):
-    payload = render_mod.build_payload(git_repo, _saga_for())
+    payload = render_mod.build_payload(_saga_for(), _feature_diff(git_repo))
 
     assert payload["branch"] == "feature"
     assert payload["base"] == "main"
@@ -62,11 +68,12 @@ def test_render_uses_saga_title_in_document_and_head(git_repo: Path, stub_vendor
     saga = _saga_for()
     saga.title = "Add goal mailbox entry point"
     saga.summary = "Lets users file a goal straight from their inbox."
-    payload = render_mod.build_payload(git_repo, saga)
+    diff = _feature_diff(git_repo)
+    payload = render_mod.build_payload(saga, diff)
     assert payload["title"] == saga.title
     assert payload["summary"] == saga.summary
 
-    html = render_mod.render(git_repo, saga)
+    html = render_mod.render(saga, diff)
     # The saga title names the browser tab (branch still appended for context).
     assert "<title>Add goal mailbox entry point · feature</title>" in html
 
@@ -76,13 +83,13 @@ def test_build_payload_skips_unknown_hunk_ids(git_repo: Path):
     the unknown id is simply dropped from the reconstructed diff."""
     saga = _saga_for()
     saga.chapters[0].hunks = ["h0", "h99"]
-    payload = render_mod.build_payload(git_repo, saga)
+    payload = render_mod.build_payload(saga, _feature_diff(git_repo))
     assert "h99" not in payload["chapters"][0]["diff"]
     assert "diff --git a/foo.py" in payload["chapters"][0]["diff"]
 
 
 def test_render_produces_self_contained_document(git_repo: Path, stub_vendored):
-    html = render_mod.render(git_repo, _saga_for())
+    html = render_mod.render(_saga_for(), _feature_diff(git_repo))
 
     assert html.startswith("<!DOCTYPE html>")
     assert "<title>Saga · feature</title>" in html
@@ -102,7 +109,7 @@ def test_render_escapes_angle_brackets_in_payload(
     """A diff containing ``</script>`` must be escaped so it cannot break out of
     the inlined ``<script>`` tag."""
 
-    def fake_payload(repo_root, saga):
+    def fake_payload(saga, diff):
         return {
             "branch": "b",
             "base": "m",
@@ -111,7 +118,7 @@ def test_render_escapes_angle_brackets_in_payload(
         }
 
     monkeypatch.setattr(render_mod, "build_payload", fake_payload)
-    html = render_mod.render(git_repo, _saga_for())
+    html = render_mod.render(_saga_for(), _feature_diff(git_repo))
     assert "</script><b>" not in html
     assert "\\u003c/script>" in html
 

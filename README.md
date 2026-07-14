@@ -15,6 +15,8 @@ the data). Open it offline, email it, commit it, or drop it on any static host.
 
 - Python 3.11+
 - `git`
+- The [`gh`](https://cli.github.com) CLI, authenticated — only for reviewing a PR
+  by URL (`saga <pr-url>`) or pushing review comments
 - An API key for your chosen provider, in the standard environment variable:
   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` — or a running
   local server (Ollama / LM Studio) and no key, with a `local/` model
@@ -56,14 +58,32 @@ Run it from anywhere with `--repo`:
 saga --repo ~/src/some-project --base main --head my-feature -o out.html
 ```
 
+### From a GitHub PR URL
+
+Point saga straight at a pull request by passing its URL as the first argument.
+No checkout is needed and it works from any directory:
+
+```sh
+saga https://github.com/owner/repo/pull/5
+saga https://github.com/owner/repo/pull/5 --model openai/gpt-4o -o pr5.html
+```
+
+This fetches the PR's diff, commits, and branch names with the
+[`gh`](https://cli.github.com) CLI (so `gh` must be installed and authenticated),
+then builds the saga exactly as it would for a local branch. In this mode the PR
+defines the change set, so `--base`, `--head`, and `--repo` are ignored.
+
+The optional positional argument is a GitHub PR URL (as above); all flags below
+apply to both modes.
+
 | Flag                   | Default                     | Meaning                                                                                            |
 | ---------------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--base`               | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`)               |
-| `--head`               | current branch              | Head ref to walk through                                                                           |
+| `--base`               | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`); local mode only |
+| `--head`               | current branch              | Head ref to walk through; local mode only                                                          |
 | `--intent PATH`        | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging |
 | `--model`              | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                          |
 | `-o, --output`         | `saga.html`                 | Output file                                                                                        |
-| `--repo`               | cwd                         | A path inside the target git repo                                                                  |
+| `--repo`               | cwd                         | A path inside the target git repo; local mode only                                                |
 | `--open` / `--no-open` | on                          | Open the result in a browser (on by default; `--no-open` to disable)                               |
 
 ## Providers
@@ -167,7 +187,8 @@ it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
 
 ## How it works
 
-1. `diff.py` computes `git diff base...head` (no checkout) and the commit list.
+1. `diff.py` computes `git diff base...head` (no checkout) and the commit list —
+   or, given a PR URL, fetches the same diff and metadata from GitHub via `gh`.
 2. `model.py` splits the diff into stable-id hunks (`h0, h1, …`).
 3. `generate.py` sends the labeled diff + commits (+ optional intent) to the chosen
    model via `instructor`, which returns chapters as schema-validated JSON. Coverage

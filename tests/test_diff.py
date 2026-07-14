@@ -1,14 +1,21 @@
 """Tests for git-sourced diff computation, run against real temp repos."""
 
+import json
+import subprocess
 from pathlib import Path
 
+import pytest
+
+import saga.diff as diff_mod
 from saga.diff import (
     compute_diff,
     current_branch,
     default_base,
+    pr_diff,
     repo_root_from,
     rev_parse,
 )
+from saga.model import SagaError
 
 
 def test_compute_diff_captures_changes_commits_and_stat(git_repo: Path):
@@ -141,3 +148,70 @@ def test_default_base_prefers_remote_head(tmp_path: Path, git_env):
     git(clone, "remote", "set-head", "origin", "main")
 
     assert default_base(clone) == "origin/main"
+
+
+# ---------------------------------------------------------------------------
+# Pull-request diffs via the gh CLI (subprocess stubbed — no network)
+# ---------------------------------------------------------------------------
+
+_PR_VIEW_JSON = json.dumps(
+    {
+        "baseRefName": "main",
+        "headRefName": "feature",
+        "headRefOid": "a" * 40,
+        "url": "https://github.com/owner/repo/pull/5",
+        "commits": [
+            {"oid": "1234567890abcdef", "messageHeadline": "add the thing"},
+            {"oid": "fedcba0987654321", "messageHeadline": "fix the thing"},
+        ],
+    }
+)
+
+
+def _fake_gh(monkeypatch, *, diff_out="", diff_rc=0, view_out="", view_rc=0):
+    """Stub subprocess.run so `gh pr diff` and `gh pr view` return canned output."""
+
+    def fake_run(cmd, **kwargs):
+        # cmd is ["gh", "pr", "<subcommand>", ...]
+        out, rc = (diff_out, diff_rc) if cmd[2] == "diff" else (view_out, view_rc)
+        return subprocess.CompletedProcess(cmd, rc, stdout=out, stderr="x")
+
+    monkeypatch.setattr(diff_mod.subprocess, "run", fake_run)
+
+
+def test_pr_diff_fetches_diff_and_metadata(monkeypatch):
+    _fake_gh(
+        monkeypatch,
+        diff_out="diff --git a/foo.py b/foo.py\n@@ -1 +1 @@\n-a\n+b\n",
+        view_out=_PR_VIEW_JSON,
+    )
+    pr = pr_diff("https://github.com/owner/repo/pull/5")
+
+    assert pr.base == "main"
+    assert pr.head == "feature"
+    assert pr.head_sha == "a" * 40
+    assert pr.url == "https://github.com/owner/repo/pull/5"
+    assert "diff --git a/foo.py" in pr.diff.diff_text
+    # Commits are formatted like `git log --oneline`: short sha + subject.
+    assert pr.diff.commits == ["123456789 add the thing", "fedcba098 fix the thing"]
+
+
+def test_pr_diff_raises_when_gh_missing(monkeypatch):
+    def boom(cmd, **kwargs):
+        raise FileNotFoundError("gh")
+
+    monkeypatch.setattr(diff_mod.subprocess, "run", boom)
+    with pytest.raises(SagaError, match="gh CLI not found"):
+        pr_diff("https://github.com/owner/repo/pull/5")
+
+
+def test_pr_diff_raises_on_gh_error(monkeypatch):
+    _fake_gh(monkeypatch, diff_rc=1, diff_out="", view_out=_PR_VIEW_JSON)
+    with pytest.raises(SagaError, match="could not fetch PR diff"):
+        pr_diff("https://github.com/owner/repo/pull/999")
+
+
+def test_pr_diff_raises_on_unexpected_view_output(monkeypatch):
+    _fake_gh(monkeypatch, diff_out="diff --git a/x b/x\n", view_out="not json")
+    with pytest.raises(SagaError, match="unexpected gh pr view output"):
+        pr_diff("https://github.com/owner/repo/pull/5")
