@@ -348,11 +348,14 @@
     // content), so building innerHTML here is injection-safe.
     const seg = [{ t: v.chapters + (v.chapters === 1 ? ' chapter' : ' chapters') }];
     if (stats && stats.files) seg.push({ t: stats.files + (stats.files === 1 ? ' file' : ' files') });
-    if (stats && (stats.added || stats.removed)) seg.push({ t: '+' + (stats.added || 0) + ' −' + (stats.removed || 0) });
+    if (stats && (stats.added || stats.removed)) {
+      seg.push({ html: '<span class="saga-add">+' + (stats.added || 0) + '</span> ' +
+                       '<span class="saga-del">−' + (stats.removed || 0) + '</span>' });
+    }
     if (v.deviations > 0) seg.push({ t: v.deviations + (v.deviations === 1 ? ' differs from plan' : ' differ from plan'), flag: true });
     if (v.low_confidence > 0) seg.push({ t: v.low_confidence + (v.low_confidence === 1 ? ' needs a closer look' : ' need a closer look'), flag: true });
     $('saga-verdict').innerHTML = seg
-      .map((s) => (s.flag ? '<span class="saga-flag">' + s.t + '</span>' : s.t))
+      .map((s) => (s.html ? s.html : s.flag ? '<span class="saga-flag">' + s.t + '</span>' : s.t))
       .join(' · ');
     // Two-tier status rail: amber when anything is flagged, else green.
     const rail = $('saga-rail');

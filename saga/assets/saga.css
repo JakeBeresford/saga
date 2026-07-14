@@ -42,6 +42,9 @@
   letter-spacing: var(--tracking-mono);
 }
 .saga-verdict .saga-flag { color: var(--warn); }
+/* diff add/remove hues, matching the diff body's green/red */
+.saga-verdict .saga-add { color: var(--ok); }
+.saga-verdict .saga-del { color: var(--danger); }
 
 .saga-meta {
   color: var(--text-faint);
