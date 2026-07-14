@@ -5,6 +5,7 @@ from pathlib import Path
 from saga.diff import (
     compute_diff,
     current_branch,
+    default_base,
     repo_root_from,
     rev_parse,
 )
@@ -93,3 +94,50 @@ def test_repo_root_from_outside_repo(tmp_path: Path):
     outside = tmp_path / "not_a_repo"
     outside.mkdir()
     assert repo_root_from(outside) is None
+
+
+def test_default_base_falls_back_to_local_main(git_repo: Path):
+    """No remote configured: detection falls through to the local ``main``."""
+    assert default_base(git_repo) == "main"
+
+
+def test_default_base_detects_local_master(tmp_path: Path, git_env):
+    """A repo whose only default-ish branch is ``master`` resolves to it."""
+    import subprocess
+
+    repo = tmp_path / "old_repo"
+    repo.mkdir()
+
+    def git(*args):
+        subprocess.run(["git", *args], cwd=repo, check=True, env=git_env)
+
+    git("init", "-q", "-b", "master")
+    (repo / "a.txt").write_text("x\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "first")
+    assert default_base(repo) == "master"
+
+
+def test_default_base_prefers_remote_head(tmp_path: Path, git_env):
+    """When ``origin/HEAD`` is set, it wins and keeps the ``origin/`` prefix."""
+    import subprocess
+
+    upstream = tmp_path / "upstream.git"
+    upstream.mkdir()
+
+    def git(cwd, *args):
+        subprocess.run(["git", *args], cwd=cwd, check=True, env=git_env)
+
+    git(upstream, "init", "-q", "--bare", "-b", "main")
+
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    git(clone, "init", "-q", "-b", "main")
+    (clone / "a.txt").write_text("x\n")
+    git(clone, "add", "-A")
+    git(clone, "commit", "-q", "-m", "first")
+    git(clone, "remote", "add", "origin", str(upstream))
+    git(clone, "push", "-q", "origin", "main")
+    git(clone, "remote", "set-head", "origin", "main")
+
+    assert default_base(clone) == "origin/main"

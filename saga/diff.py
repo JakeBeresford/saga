@@ -68,6 +68,25 @@ def current_branch(repo_root: Path) -> str:
     return name or "HEAD"
 
 
+def default_base(repo_root: Path) -> str:
+    """Best guess at the repo's default base ref, preferring the remote's.
+
+    Tries the remote's recorded HEAD (``git symbolic-ref`` on
+    ``refs/remotes/origin/HEAD``, e.g. ``origin/main``), then the first of a few
+    common candidates that actually resolves, and finally falls back to
+    ``"main"``. All local — no network access.
+    """
+    head = _git(repo_root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    if head.returncode == 0 and head.stdout.strip():
+        return head.stdout.strip()
+
+    for candidate in ("origin/main", "origin/master", "main", "master"):
+        if rev_parse(repo_root, candidate):
+            return candidate
+
+    return "main"
+
+
 def repo_root_from(path: Path) -> Path | None:
     """The git top-level containing *path*, or ``None`` if not in a repo."""
     result = subprocess.run(

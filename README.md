@@ -58,7 +58,7 @@ saga --repo ~/src/some-project --base main --head my-feature -o out.html
 
 | Flag                   | Default                     | Meaning                                                                                            |
 | ---------------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--base`               | `main`                      | Base ref to diff against                                                                           |
+| `--base`               | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`)               |
 | `--head`               | current branch              | Head ref to walk through                                                                           |
 | `--intent PATH`        | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging |
 | `--model`              | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                          |
