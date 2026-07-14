@@ -5,8 +5,8 @@
 // diff). This file renders it — a table of contents (the entry point) and a
 // chapter reader — tracks per-chapter mark-as-read in localStorage, and lets a
 // reviewer leave inline / per-file / overall comments (also drafted in
-// localStorage) that Export downloads as a saga.comments.json sidecar. No
-// server, no fetch.
+// localStorage) that the Copy buttons hand off to the `saga comments` CLI as a
+// base64 `--data` payload. No server, no fetch.
 
 (function () {
   const data = window.__sagaData || {chapters: [], verdict: null, branch: ''};
@@ -73,7 +73,7 @@
     localStorage.setItem(readKey(), JSON.stringify([...s]));
   }
 
-  // --- comments (localStorage draft, exported as a sidecar) ----------
+  // --- comments (localStorage draft, copied to the CLI as --data) ----
 
   let comments = {files: {}, overall: ''};
 
@@ -264,7 +264,8 @@
     });
   }
 
-  function exportComments() {
+  // Assemble the comments payload — the same shape the CLI validates.
+  function buildPayload() {
     const files = {};
     Object.keys(comments.files).forEach((p) => {
       const e = comments.files[p];
@@ -279,22 +280,48 @@
       if (inline.length) out.inline = inline;
       files[p] = out;
     });
-    const sidecar = {
+    return {
       branch: data.branch || '',
       base: data.base || '',
-      generated_at: new Date().toISOString(),
       overall: (comments.overall || '').trim(),
       files: files,
     };
-    const blob = new Blob([JSON.stringify(sidecar, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'saga.comments.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  }
+
+  // base64(UTF-8 JSON) — the payload rides inside the copied command as
+  // `--data`, so the reviewer never has to find a file on disk.
+  function encodePayload() {
+    const bytes = new TextEncoder().encode(JSON.stringify(buildPayload()));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    // file:// fallback where the async clipboard API is unavailable.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } finally { ta.remove(); }
+    return Promise.resolve();
+  }
+
+  // Copy a ready-to-run `saga comments <sub> --data …` command. The reviewer
+  // pastes it into their terminal (push) or coding agent (read).
+  function copyCommand(sub, btn) {
+    const cmd = 'saga comments ' + sub + ' --data ' + encodePayload();
+    copyText(cmd).then(() => {
+      const label = btn.dataset.label;
+      btn.textContent = 'Copied ✓';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 1500);
+    });
   }
 
   // --- entry ----------------------------------------------------------
@@ -389,7 +416,8 @@
       '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
       '<div class="saga-review-actions">' +
       '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
-      '<button class="saga-btn" id="saga-export">Export comments</button>' +
+      '<button class="saga-btn" id="saga-copy-agent" data-label="Copy for agent">Copy for agent</button>' +
+      '<button class="saga-btn" id="saga-copy-gh" data-label="Copy for GitHub">Copy for GitHub</button>' +
       '</div>' +
       '</div>' +
       '<h2 class="saga-toc-title">Chapters</h2>';
@@ -411,8 +439,10 @@
       overall.value = comments.overall || '';
       overall.addEventListener('input', () => { comments.overall = overall.value; persist(); });
     }
-    const exp = $('saga-export');
-    if (exp) exp.addEventListener('click', exportComments);
+    const agentBtn = $('saga-copy-agent');
+    if (agentBtn) agentBtn.addEventListener('click', () => copyCommand('read', agentBtn));
+    const ghBtn = $('saga-copy-gh');
+    if (ghBtn) ghBtn.addEventListener('click', () => copyCommand('push', ghBtn));
     updateCount();
   }
 

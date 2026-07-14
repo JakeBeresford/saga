@@ -2,12 +2,24 @@
 GitHub review payload builder. The gh/subprocess paths are side-effectful and
 are not unit tested (matching the repo's test-the-pure-core convention)."""
 
+import base64
 import json
 
 import pytest
 
-from saga.comments import build_review_payload, load_sidecar, push, read
+from saga.comments import (
+    build_review_payload,
+    decode_payload,
+    load_sidecar,
+    push,
+    read,
+)
 from saga.model import SagaError
+
+
+def _encode(obj: dict) -> str:
+    return base64.b64encode(json.dumps(obj).encode()).decode()
+
 
 SIDECAR = {
     "branch": "feature",
@@ -143,3 +155,43 @@ def test_load_sidecar_rejects_inline_missing_line(tmp_path):
     p.write_text(json.dumps({"files": {"a.py": {"inline": [{"body": "x"}]}}}))
     with pytest.raises(SagaError, match="needs a 'line' and a 'body'"):
         load_sidecar(p)
+
+
+# --- decode_payload (the --data path) -------------------------------------
+
+
+def test_decode_payload_round_trips_the_sidecar():
+    assert decode_payload(_encode(SIDECAR))["branch"] == "feature"
+
+
+def test_decode_payload_validates_shape():
+    with pytest.raises(SagaError, match="needs a 'line' and a 'body'"):
+        decode_payload(_encode({"files": {"a.py": {"inline": [{"body": "x"}]}}}))
+
+
+def test_decode_payload_rejects_non_base64():
+    with pytest.raises(SagaError, match="not valid base64"):
+        decode_payload("not base64!!")
+
+
+def test_decode_payload_rejects_base64_of_non_json():
+    with pytest.raises(SagaError, match="not valid JSON"):
+        decode_payload(base64.b64encode(b"not json").decode())
+
+
+def test_read_from_data_ignores_missing_file(capsys):
+    # --data wins and no file is touched.
+    rc = read("does-not-exist.json", data=_encode(SIDECAR))
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["overall"] == "Overall this is solid."
+
+
+def test_push_empty_data_reports_no_comments(tmp_path, capsys):
+    rc = push(
+        tmp_path / "unused.json",
+        tmp_path,
+        data=_encode({"branch": "x", "base": "main", "overall": "", "files": {}}),
+    )
+    assert rc == 0
+    assert "No comments to push" in capsys.readouterr().err
