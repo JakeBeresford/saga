@@ -149,7 +149,7 @@ boots an agent per run) and subject to your subscription's usage limits.
 
 ## As a Claude Code skill
 
-The `skills/` directory contains two Claude Code skills. To install both:
+The `skills/` directory contains a Claude Code skill. To install it:
 
 ```sh
 cp -R "$(pwd)/skills" ~/.claude/skills/saga
@@ -157,8 +157,6 @@ cp -R "$(pwd)/skills" ~/.claude/skills/saga
 
 - **`saga`** — say **"/saga"** (or "give me a walkthrough of this branch") to generate a
   saga. It resolves the base/head refs and runs the tool for you.
-- **`saga-comments`** — say **"/saga-comments"** (or "address the saga comments") to read an
-  exported `saga.comments.json` and act on the reviewer's feedback in code.
 
 ## Reviewing: comments
 
@@ -168,19 +166,20 @@ kinds of comments — **inline** (click a line's number in any chapter's diff), 
 (the box at the top of the Chapters list). Comments are drafted in your browser's
 `localStorage`, so they survive a reload.
 
-When you're done, click **Export comments** to download a `saga.comments.json` sidecar next
-to the HTML. (Export is disabled in the [hosted example](https://jakeberesford.github.io/saga/example.html)
-so it never writes a file — every other part of the review UX works.) Two commands consume it:
+When you're done, click one of the copy buttons. Each puts a ready-to-run command on your
+clipboard with the comments encoded inline (`--data`), so there's no file to find on disk —
+paste it wherever you need it:
 
 ```sh
-# Post everything as a single PENDING review on the PR (you submit it on GitHub).
-saga comments push --comments saga.comments.json
+# "Copy for GitHub" → post everything as a single PENDING review (you submit it on GitHub).
+saga comments push --data <base64>
 
-# Emit the comments as JSON on stdout — for a coding agent to act on.
-saga comments read --comments saga.comments.json
+# "Copy for agent" → emit the comments as JSON on stdout for a coding agent to act on.
+saga comments read --data <base64>
 ```
 
-`push` uses the `gh` CLI: it finds the open PR for the sidecar's branch and creates one
+Prefer a file? Both commands also accept `--comments <path>` for a `saga.comments.json` you
+write yourself (handy for scripting). `push` uses the `gh` CLI: it finds the open PR for the branch and creates one
 pending review (inline → line comments, per-file → a note anchored to the file's first
 changed line, overall → the review body). Nothing is submitted until you review and submit
 it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.

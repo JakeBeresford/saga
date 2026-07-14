@@ -1,20 +1,24 @@
-"""The ``saga comments`` subcommands: sidecar IO, GitHub push, agent read.
+"""The ``saga comments`` subcommands: comment IO, GitHub push, agent read.
 
-A reviewer authors comments in the browser (see ``assets/saga.js``); the page
-exports them as a sidecar ``saga.comments.json`` next to the saga HTML. This
-module consumes that sidecar two ways:
+A reviewer authors comments in the browser (see ``assets/saga.js``); the page's
+"Copy" buttons put a ready-to-run command on the clipboard, with the comments
+base64-encoded inline as ``--data`` — so nothing has to be found on disk. This
+module consumes those comments two ways:
 
 * ``push`` bundles every comment into a single **pending** PR review via the
   ``gh`` CLI (``event`` omitted ⇒ PENDING) — the reviewer submits it on GitHub.
 * ``read`` emits a normalized JSON view on stdout for a coding agent.
 
-The GitHub subprocess calls mirror ``diff._git`` — stdlib + the ``gh`` CLI only.
-``build_review_payload`` is a pure function so the payload shape is unit-tested
-without touching the network.
+Both accept the base64 ``--data`` payload or, as a scripting escape hatch, a
+``--comments`` file. The GitHub subprocess calls mirror ``diff._git`` — stdlib
++ the ``gh`` CLI only. ``build_review_payload`` is a pure function so the
+payload shape is unit-tested without touching the network.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import subprocess
 import sys
@@ -30,16 +34,41 @@ _FILE_NOTE_PREFIX = "**File-level note:** "
 
 
 # ---------------------------------------------------------------------------
-# Sidecar IO
+# Comment IO
 # ---------------------------------------------------------------------------
 
 
-def load_sidecar(path: Path) -> dict:
-    """Read and validate a ``saga.comments.json`` sidecar.
+def _validate(data: object) -> dict:
+    """Validate a decoded comments object, whatever source it came from.
 
     Raises ``SagaError`` with a reviewer-facing message on any malformed shape —
-    unreadable file, bad JSON, or an inline comment lacking ``line``/``body``.
-    Callers handle a *missing* sidecar themselves (it means "no comments yet").
+    a non-object, a bad ``files`` map, or an inline comment lacking
+    ``line``/``body``.
+    """
+    if not isinstance(data, dict):
+        raise SagaError("comments must be a JSON object.")
+    files = data.get("files", {})
+    if not isinstance(files, dict):
+        raise SagaError("'files' must be a JSON object keyed by file path.")
+    for fpath, entry in files.items():
+        if not isinstance(entry, dict):
+            raise SagaError(f"file entry for {fpath} must be an object.")
+        inline = entry.get("inline", [])
+        if not isinstance(inline, list):
+            raise SagaError(f"'inline' for {fpath} must be a list.")
+        for c in inline:
+            if not isinstance(c, dict) or "line" not in c or "body" not in c:
+                raise SagaError(
+                    f"inline comment on {fpath} needs a 'line' and a 'body'."
+                )
+    return data
+
+
+def load_sidecar(path: Path) -> dict:
+    """Read and validate a ``saga.comments.json`` file (the scripting fallback).
+
+    Callers handle a *missing* file themselves (it means "no comments yet"); an
+    unreadable or malformed file is a real error.
     """
     try:
         raw = Path(path).read_text()
@@ -49,21 +78,32 @@ def load_sidecar(path: Path) -> dict:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
         raise SagaError(f"comments file {path} is not valid JSON: {e}") from e
+    return _validate(data)
 
-    if not isinstance(data, dict):
-        raise SagaError("comments file must be a JSON object.")
-    files = data.get("files", {})
-    if not isinstance(files, dict):
-        raise SagaError("'files' must be a JSON object keyed by file path.")
-    for fpath, entry in files.items():
-        if not isinstance(entry, dict):
-            raise SagaError(f"file entry for {fpath} must be an object.")
-        for c in entry.get("inline", []):
-            if not isinstance(c, dict) or "line" not in c or "body" not in c:
-                raise SagaError(
-                    f"inline comment on {fpath} needs a 'line' and a 'body'."
-                )
-    return data
+
+def decode_payload(encoded: str) -> dict:
+    """Decode+validate the base64 comments payload from the page's Copy button."""
+    try:
+        raw = base64.b64decode(encoded, validate=True).decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError) as e:
+        raise SagaError(f"comments payload is not valid base64: {e}") from e
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise SagaError(f"comments payload is not valid JSON: {e}") from e
+    return _validate(data)
+
+
+def _resolve(data: str | None, sidecar_path: Path) -> dict:
+    """Resolve comments from the ``--data`` payload or a ``--comments`` file.
+
+    ``--data`` is the primary path and wins when present. A *missing* file means
+    "no comments yet" (empty dict); a bad payload or malformed file is an error.
+    """
+    if data is not None:
+        return decode_payload(data)
+    path = Path(sidecar_path)
+    return load_sidecar(path) if path.exists() else {}
 
 
 # ---------------------------------------------------------------------------
@@ -167,10 +207,11 @@ def _pr_info(repo_root: Path, branch: str) -> tuple[int, str]:
 # ---------------------------------------------------------------------------
 
 
-def push(sidecar_path: Path, repo_root: Path, *, web: bool = False) -> int:
-    """Post the sidecar's comments as a single pending review on the PR."""
-    path = Path(sidecar_path)
-    sidecar = load_sidecar(path) if path.exists() else {}
+def push(
+    sidecar_path: Path, repo_root: Path, *, data: str | None = None, web: bool = False
+) -> int:
+    """Post the reviewer's comments as a single pending review on the PR."""
+    sidecar = _resolve(data, sidecar_path)
 
     payload = build_review_payload(sidecar)
     if not payload:
@@ -207,15 +248,14 @@ def push(sidecar_path: Path, repo_root: Path, *, web: bool = False) -> int:
     return 0
 
 
-def read(sidecar_path: Path) -> int:
-    """Print the sidecar's comments as normalized JSON on stdout.
+def read(sidecar_path: Path, *, data: str | None = None) -> int:
+    """Print the reviewer's comments as normalized JSON on stdout.
 
-    This command feeds a coding agent, so a missing sidecar is not an error —
-    "no comments authored yet" is reported as a valid, empty JSON document. A
-    sidecar that exists but is malformed still errors (that is a real problem).
+    This command feeds a coding agent, so *no comments* is not an error —
+    an absent ``--data`` and a missing file both report a valid, empty JSON
+    document. A payload or file that exists but is malformed still errors.
     """
-    path = Path(sidecar_path)
-    sidecar = load_sidecar(path) if path.exists() else {}
+    sidecar = _resolve(data, sidecar_path)
     print(json.dumps(_normalize_for_agent(sidecar), indent=2, ensure_ascii=False))
     return 0
 
@@ -226,8 +266,12 @@ comments_app = typer.Typer(
 )
 
 
+_DATA_HELP = "base64 comments payload from the saga page's Copy button"
+
+
 @comments_app.command("push")
 def push_cmd(
+    data: str = typer.Option(None, "--data", help=_DATA_HELP),
     comments: Path = typer.Option(_DEFAULT_SIDECAR, "--comments"),
     repo: Path = typer.Option(Path.cwd(), "--repo"),
     web: bool = typer.Option(
@@ -240,7 +284,7 @@ def push_cmd(
         typer.echo(f"error: {repo} is not inside a git repository.", err=True)
         raise typer.Exit(1)
     try:
-        push(comments, repo_root, web=web)
+        push(comments, repo_root, data=data, web=web)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e
@@ -248,11 +292,12 @@ def push_cmd(
 
 @comments_app.command("read")
 def read_cmd(
+    data: str = typer.Option(None, "--data", help=_DATA_HELP),
     comments: Path = typer.Option(_DEFAULT_SIDECAR, "--comments"),
 ) -> None:
     """Print comments as JSON on stdout (for a coding agent)."""
     try:
-        read(comments)
+        read(comments, data=data)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e
