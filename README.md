@@ -1,10 +1,6 @@
-```
- ___  __ _  __ _  __ _
-/ __|/ _` |/ _` |/ _` |
-\__ \ (_| | (_| | (_| |
-|___/\__,_|\__, |\__,_|
-           |___/
-```
+<p align="center">
+  <img alt="Saga" src="docs/assets/logo.png" width="140">
+</p>
 
 <p align="center">
   <a href="https://pypi.org/project/saga-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/saga-cli?style=flat-square&color=0e7490"></a>
