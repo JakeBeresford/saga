@@ -7,22 +7,20 @@ Thanks for your interest in Saga.
 ```sh
 git clone https://github.com/JakeBeresford/saga
 cd saga
-uv pip install -e . pytest   # or: pip install -e . pytest
+uv sync --group dev   # install the package plus the dev/test tools
 ```
 
-Run the tests:
+Validate your changes with the same checks CI runs:
 
 ```sh
-python -m pytest
+scripts/check.sh   # lint + type-check + test — the full gate
+scripts/lint.sh    # ruff check, ruff format --check, and ty type-check
+scripts/test.sh    # pytest
 ```
 
-Lint, format, and type-check (install the dev tools with `uv sync --group dev`):
-
-```sh
-uv run ruff check .          # lint
-uv run ruff format .         # auto-format
-uv run ty check .            # type check
-```
+`scripts/check.sh` is the gate to run before opening a PR. Auto-fix formatting
+with `uv run ruff format .`, and run a single test with
+`uv run pytest tests/test_model.py::test_name`.
 
 To try the CLI against a real repo while developing, install it as an editable
 tool and run it from inside any git checkout:
@@ -37,8 +35,8 @@ saga --base main --head my-feature
 - Keep changes focused and match the existing style.
 - Add or update tests for any behavior change — the core model logic in
   `saga/model.py` is unit-tested in `tests/test_model.py`.
-- Make sure `python -m pytest` passes and `ruff`/`ty` are clean before opening a
-  PR. CI runs the suite on Python 3.11–3.13 plus a lint/format/type-check job.
+- Make sure `scripts/check.sh` passes before opening a PR. CI runs the same
+  checks: the test suite on Python 3.11–3.13 plus a lint/format/type-check job.
 
 ## Reporting issues
 
