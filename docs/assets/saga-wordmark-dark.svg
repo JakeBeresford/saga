@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="60" viewBox="0 0 240 60" role="img" aria-label="Saga">
-  <!-- signature rail + chapter lines -->
-  <rect x="4" y="12" width="6" height="36" rx="3" fill="#57c7e3"/>
-  <rect x="20" y="16" width="30" height="6" rx="3" fill="#e7ecf3"/>
-  <rect x="20" y="27" width="22" height="6" rx="3" fill="#9aa7b8"/>
-  <rect x="20" y="38" width="27" height="6" rx="3" fill="#9aa7b8"/>
-  <text x="66" y="42" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace"
-        font-size="36" font-weight="600" letter-spacing="-0.5" fill="#e7ecf3">saga</text>
-</svg>

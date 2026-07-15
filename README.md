@@ -1,9 +1,10 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/saga-wordmark-dark.svg">
-    <img alt="Saga" src="docs/assets/saga-wordmark-light.svg" width="200">
-  </picture>
-</p>
+```
+ ___  __ _  __ _  __ _
+/ __|/ _` |/ _` |/ _` |
+\__ \ (_| | (_| | (_| |
+|___/\__,_|\__, |\__,_|
+           |___/
+```
 
 <p align="center">
   <a href="https://pypi.org/project/saga-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/saga-cli?style=flat-square&color=0e7490"></a>

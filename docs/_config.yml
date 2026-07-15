@@ -5,7 +5,6 @@ url: https://jakeberesford.github.io
 baseurl: /saga
 
 color_scheme: saga
-logo: "/assets/saga-wordmark-light.svg"
 
 plugins:
   - jekyll-remote-theme
