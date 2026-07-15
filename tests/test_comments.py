@@ -1,13 +1,13 @@
 """Unit tests for the pure comments core: the GitHub review payload builder,
-the agent view, and envelope resolution from a saga HTML file or a hand-written
-sidecar. The gh/subprocess paths are side-effectful and are not unit tested
-(matching the repo's test-the-pure-core convention)."""
+the agent view, and envelope resolution from a saga HTML file. The gh/subprocess
+paths are side-effectful and are not unit tested (matching the repo's
+test-the-pure-core convention)."""
 
 import json
 
 import pytest
 
-from saga import block
+from saga import comments_block
 from saga.comments import (
     agent_view,
     build_review_payload,
@@ -48,7 +48,7 @@ def _saga_doc(env: dict, branch: str = "feature", base: str = "main") -> str:
     both the envelope and its branch/base metadata are recoverable."""
     return (
         "<!DOCTYPE html>\n<body>\n"
-        f"{block.render_block(env)}\n"
+        f"{comments_block.render_block(env)}\n"
         "<script>\n"
         f'window.__sagaData = {{"branch":"{branch}","base":"{base}"}};\n'
         "</script>\n</body>\n"
@@ -111,7 +111,7 @@ def test_inline_side_defaults_to_right():
 
 
 def test_empty_envelope_yields_empty_payload():
-    assert build_review_payload(block.empty_envelope("x")) == {}
+    assert build_review_payload(comments_block.empty_envelope("x")) == {}
 
 
 def test_overall_only_omits_comments():
@@ -174,40 +174,21 @@ def test_agent_view_drops_deleted_overall():
 def test_resolve_reads_envelope_and_meta_from_html(tmp_path):
     path = tmp_path / "saga.html"
     path.write_text(_saga_doc(ENV))
-    env, meta = resolve(path, None)
+    env, meta = resolve(path)
     assert env["overall"]["body"] == "Overall this is solid."
     assert meta["branch"] == "feature" and meta["base"] == "main"
 
 
 def test_resolve_missing_html_errors(tmp_path):
     with pytest.raises(SagaError, match="no saga file at"):
-        resolve(tmp_path / "nope.html", None)
+        resolve(tmp_path / "nope.html")
 
 
 def test_resolve_html_without_block_errors(tmp_path):
     path = tmp_path / "plain.html"
     path.write_text("<html>no block</html>")
     with pytest.raises(SagaError, match="not a saga with a comments block"):
-        resolve(path, None)
-
-
-def test_resolve_reads_hand_written_sidecar(tmp_path):
-    p = tmp_path / "c.json"
-    p.write_text(json.dumps({"branch": "b", "base": "m", "file": [], "inline": []}))
-    env, meta = resolve(None, p)
-    assert meta["branch"] == "b"
-
-
-def test_resolve_missing_sidecar_is_empty(tmp_path):
-    env, meta = resolve(None, tmp_path / "nope.json")
-    assert env["inline"] == [] and env["file"] == []
-
-
-def test_resolve_malformed_sidecar_errors(tmp_path):
-    p = tmp_path / "bad.json"
-    p.write_text(json.dumps({"inline": [{"body": "no path or line"}]}))
-    with pytest.raises(SagaError):
-        resolve(None, p)
+        resolve(path)
 
 
 # --- push / read (no-network paths) ---------------------------------------
@@ -215,7 +196,7 @@ def test_resolve_malformed_sidecar_errors(tmp_path):
 
 def test_push_no_comments_reports_nothing_to_push(tmp_path, capsys):
     path = tmp_path / "saga.html"
-    path.write_text(_saga_doc(block.empty_envelope("deadbeef")))
+    path.write_text(_saga_doc(comments_block.empty_envelope("deadbeef")))
     rc = push(path, tmp_path)
     assert rc == 0
     assert "No comments to push" in capsys.readouterr().err

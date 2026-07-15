@@ -221,8 +221,7 @@ saga comments push ./saga.html
 saga comments read ./saga.html
 ```
 
-Both default to `./saga.html`. For scripting, `--comments <path>` reads a hand-written JSON
-envelope instead.
+Both default to `./saga.html`.
 
 ## How it works
 
@@ -233,7 +232,7 @@ envelope instead.
    model via `instructor`, which returns chapters as schema-validated JSON. Coverage
    is **re-validated in code** — every hunk must belong to a chapter or generation fails.
 4. `render.py` reconstructs each chapter's diff and inlines everything into one
-   self-contained HTML file, including an empty comments block (`block.py`) and a
+   self-contained HTML file, including an empty comments block (`comments_block.py`) and a
    per-file `sagaId`.
 5. `serve.py` serves that file on a loopback port derived from the `sagaId` and rewrites
    the comments block in place as you review; `comments.py` reads the same block to

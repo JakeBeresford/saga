@@ -16,7 +16,7 @@ import secrets
 from pathlib import Path
 from urllib.request import urlopen
 
-from . import block
+from . import comments_block
 from .diff import DiffResult
 from .model import Saga, parse_hunks, reconstruct_diff
 
@@ -116,7 +116,9 @@ def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
     # The comments block is the durable, in-file store review comments live in
     # (rewritten by `saga serve`). Its sagaId — minted once here — is the front
     # end's only source of the id, so it is never injected into __sagaData.
-    comments_block = block.render_block(block.empty_envelope(secrets.token_hex(8)))
+    comments_block_html = comments_block.render_block(
+        comments_block.empty_envelope(secrets.token_hex(8))
+    )
     title = f"{html.escape(saga.title) or 'Saga'} · {html.escape(saga.branch)}"
     styles = "\n".join(
         [
@@ -172,7 +174,7 @@ try {{
 <div id="saga-notice"></div>
 <div id="saga-toc" class="saga-toc"></div>
 <div id="saga-reader" class="saga-reader" hidden></div>
-{comments_block}
+{comments_block_html}
 <script>
 {scripts}
 </script>

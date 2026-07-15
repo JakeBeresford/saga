@@ -1,18 +1,19 @@
 """The ``saga comments`` subcommands: publish to GitHub, or read for an agent.
 
 A reviewer authors comments in the browser (see ``assets/saga.js``), which are
-persisted **inside** the saga HTML as a JSON envelope (see ``block.py``). This
-module reads that envelope and consumes it two ways:
+persisted **inside** the saga HTML as a JSON envelope (see ``comments_block.py``).
+Comments always come from that file — there is no scripted/hand-written input.
+This module reads the envelope and consumes it two ways:
 
 * ``push`` bundles every comment into a single **pending** PR review via the
   ``gh`` CLI (``event`` omitted ⇒ PENDING) — the reviewer submits it on GitHub.
 * ``read`` emits a normalized JSON view on stdout for a coding agent.
 
-Both read the envelope straight from the saga HTML file (``saga comments push
-./saga.html``); ``--comments`` still accepts a hand-written JSON envelope as a
-scripting escape hatch. The GitHub subprocess calls mirror ``diff._git`` —
-stdlib + the ``gh`` CLI only. ``build_review_payload`` and ``agent_view`` are
-pure functions so their shapes are unit-tested without touching the network.
+Both read the envelope straight from the saga HTML file (default ``saga.html``,
+or an explicit path: ``saga comments push ./saga.html``). The GitHub subprocess
+calls mirror ``diff._git`` — stdlib + the ``gh`` CLI only. ``build_review_payload``
+and ``agent_view`` are pure functions so their shapes are unit-tested without
+touching the network.
 
 ``create_github_review`` and ``agent_view`` are the shared core reused by
 ``saga serve``'s ``POST /api/publish`` (see ``serve.py``).
@@ -27,7 +28,7 @@ from pathlib import Path
 
 import typer
 
-from . import block
+from . import comments_block
 from .diff import repo_root_from
 from .model import SagaError
 
@@ -36,52 +37,28 @@ _FILE_NOTE_PREFIX = "**File-level note:** "
 
 
 # ---------------------------------------------------------------------------
-# Envelope resolution (HTML file or hand-written sidecar)
+# Envelope resolution (from the saga HTML file)
 # ---------------------------------------------------------------------------
 
 
-def _load_sidecar(path: Path) -> dict:
-    """Read and validate a hand-written JSON envelope (the scripting fallback)."""
-    try:
-        raw = path.read_text()
-    except OSError as e:
-        raise SagaError(f"could not read comments file {path}: {e}") from e
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise SagaError(f"comments file {path} is not valid JSON: {e}") from e
-    try:
-        return block.validate_envelope(data)
-    except block.BlockError as e:
-        raise SagaError(str(e)) from e
+def resolve(saga_file: Path | None) -> tuple[dict, dict]:
+    """Resolve the ``(envelope, meta)`` pair from the saga HTML file.
 
-
-def resolve(saga_file: Path | None, comments: Path | None) -> tuple[dict, dict]:
-    """Resolve the ``(envelope, meta)`` pair from the CLI's inputs.
-
-    ``--comments`` (a hand-written envelope) wins when given; a *missing* sidecar
-    means "no comments yet" (an empty envelope), while a malformed one errors.
-    Otherwise the envelope is read from the saga HTML file (default
-    ``saga.html``) and *meta* (branch/base) is recovered from its ``__sagaData``.
-    A hand-written sidecar may carry its own top-level ``branch``/``base``.
+    Reads the embedded comments block for the comments and ``__sagaData`` for the
+    branch/base metadata (comments carry none). Raises ``SagaError`` if the file
+    is missing or isn't a saga with a comments block.
     """
-    if comments is not None:
-        if not comments.exists():
-            return block.empty_envelope(""), {}
-        env = _load_sidecar(comments)
-        return env, {"branch": env.get("branch", ""), "base": env.get("base", "")}
-
     path = saga_file or _DEFAULT_SAGA
     if not path.exists():
         raise SagaError(
-            f"no saga file at {path}. Pass the saga HTML path "
-            "(saga comments push ./saga.html) or a --comments file."
+            f"no saga file at {path}. Pass the saga HTML path, "
+            "e.g. saga comments push ./saga.html"
         )
     try:
-        env = block.read_envelope(path)
-    except block.BlockError as e:
+        env = comments_block.read_envelope(path)
+    except comments_block.BlockError as e:
         raise SagaError(f"{path} is not a saga with a comments block: {e}") from e
-    return env, block.read_saga_meta(path)
+    return env, comments_block.read_saga_meta(path)
 
 
 # ---------------------------------------------------------------------------
@@ -244,15 +221,9 @@ def create_github_review(repo_root: Path, envelope: dict, meta: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def push(
-    saga_file: Path | None,
-    repo_root: Path,
-    *,
-    comments: Path | None = None,
-    web: bool = False,
-) -> int:
+def push(saga_file: Path | None, repo_root: Path, *, web: bool = False) -> int:
     """Post the reviewer's comments as a single pending review on the PR."""
-    envelope, meta = resolve(saga_file, comments)
+    envelope, meta = resolve(saga_file)
     summary = create_github_review(repo_root, envelope, meta)
     print(summary, file=sys.stderr)
     if web and meta.get("branch"):
@@ -260,9 +231,9 @@ def push(
     return 0
 
 
-def read(saga_file: Path | None, *, comments: Path | None = None) -> int:
+def read(saga_file: Path | None) -> int:
     """Print the reviewer's comments as normalized JSON on stdout (for an agent)."""
-    envelope, meta = resolve(saga_file, comments)
+    envelope, meta = resolve(saga_file)
     print(json.dumps(agent_view(envelope, meta), indent=2, ensure_ascii=False))
     return 0
 
@@ -273,13 +244,11 @@ comments_app = typer.Typer(
 )
 
 _FILE_HELP = "path to the saga HTML file (default: saga.html)"
-_COMMENTS_HELP = "read a hand-written JSON envelope instead of a saga HTML file"
 
 
 @comments_app.command("push")
 def push_cmd(
     saga_file: Path = typer.Argument(None, metavar="[FILE]", help=_FILE_HELP),
-    comments: Path = typer.Option(None, "--comments", help=_COMMENTS_HELP),
     repo: Path = typer.Option(Path.cwd(), "--repo"),
     web: bool = typer.Option(
         False, "--web", help="open the PR in a browser after pushing"
@@ -291,7 +260,7 @@ def push_cmd(
         typer.echo(f"error: {repo} is not inside a git repository.", err=True)
         raise typer.Exit(1)
     try:
-        push(saga_file, repo_root, comments=comments, web=web)
+        push(saga_file, repo_root, web=web)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e
@@ -300,11 +269,10 @@ def push_cmd(
 @comments_app.command("read")
 def read_cmd(
     saga_file: Path = typer.Argument(None, metavar="[FILE]", help=_FILE_HELP),
-    comments: Path = typer.Option(None, "--comments", help=_COMMENTS_HELP),
 ) -> None:
     """Print comments as JSON on stdout (for a coding agent)."""
     try:
-        read(saga_file, comments=comments)
+        read(saga_file)
     except SagaError as e:
         typer.echo(f"error: {e}", err=True)
         raise typer.Exit(1) from e

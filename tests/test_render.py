@@ -138,21 +138,25 @@ def test_render_escapes_angle_brackets_in_payload(
 def test_render_embeds_empty_comments_block_with_saga_id(git_repo: Path, stub_vendored):
     """A freshly rendered saga carries the sentinels and a valid empty envelope
     with a fresh sagaId — the in-file comment store, readable offline."""
-    from saga import block
+    from saga import comments_block
 
     html = render_mod.render(_saga_for(), _feature_diff(git_repo))
-    assert block.START in html and block.END in html
-    env = block.extract_envelope(html)
+    assert comments_block.START in html and comments_block.END in html
+    env = comments_block.extract_envelope(html)
     assert env["schema"] == 1
     assert env["overall"] is None and env["file"] == [] and env["inline"] == []
     assert len(env["sagaId"]) == 16  # secrets.token_hex(8)
 
 
 def test_render_mints_a_distinct_saga_id_each_time(git_repo: Path, stub_vendored):
-    from saga import block
+    from saga import comments_block
 
-    a = block.extract_envelope(render_mod.render(_saga_for(), _feature_diff(git_repo)))
-    b = block.extract_envelope(render_mod.render(_saga_for(), _feature_diff(git_repo)))
+    a = comments_block.extract_envelope(
+        render_mod.render(_saga_for(), _feature_diff(git_repo))
+    )
+    b = comments_block.extract_envelope(
+        render_mod.render(_saga_for(), _feature_diff(git_repo))
+    )
     assert a["sagaId"] != b["sagaId"]
 
 

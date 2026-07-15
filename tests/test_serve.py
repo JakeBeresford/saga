@@ -12,14 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from saga import block, serve
+from saga import comments_block, serve
 from saga.model import SagaError
 
 
 def _saga_doc(env: dict) -> str:
     return (
         "<!DOCTYPE html>\n<body>\n<div id='saga-reader'></div>\n"
-        f"{block.render_block(env)}\n"
+        f"{comments_block.render_block(env)}\n"
         "<script>\n"
         'window.__sagaData = {"branch":"feature","base":"main"};\n'
         "</script>\n</body>\n"
@@ -29,7 +29,7 @@ def _saga_doc(env: dict) -> str:
 @pytest.fixture
 def saga_file(tmp_path: Path) -> Path:
     path = tmp_path / "saga.html"
-    path.write_text(_saga_doc(block.empty_envelope("a1b2c3d4e5f6a7b8")))
+    path.write_text(_saga_doc(comments_block.empty_envelope("a1b2c3d4e5f6a7b8")))
     return path
 
 
@@ -127,7 +127,7 @@ def test_bad_host_is_rejected_403(saga_file):
 
 def test_put_without_token_is_rejected_401(saga_file):
     with _running(saga_file) as (base, port, _):
-        env = block.read_envelope(saga_file)
+        env = comments_block.read_envelope(saga_file)
         status, _ = _request(
             f"{base}/api/comments",
             method="PUT",
@@ -139,7 +139,7 @@ def test_put_without_token_is_rejected_401(saga_file):
 
 def test_put_with_wrong_saga_id_is_rejected_409(saga_file):
     with _running(saga_file) as (base, port, token):
-        env = block.empty_envelope("wrong-id")
+        env = comments_block.empty_envelope("wrong-id")
         status, _ = _request(
             f"{base}/api/comments",
             method="PUT",
@@ -168,7 +168,7 @@ def test_put_to_a_file_missing_sentinels_is_422(saga_file):
     with _running(saga_file) as (base, port, token):
         # Simulate the block being stripped out from under the server.
         saga_file.write_text("<html>no block anymore</html>")
-        env = block.empty_envelope("a1b2c3d4e5f6a7b8")
+        env = comments_block.empty_envelope("a1b2c3d4e5f6a7b8")
         status, _ = _request(
             f"{base}/api/comments",
             method="PUT",
@@ -180,7 +180,7 @@ def test_put_to_a_file_missing_sentinels_is_422(saga_file):
 
 def test_put_updates_the_file_and_reopen_sees_it(saga_file):
     with _running(saga_file) as (base, port, token):
-        env = block.read_envelope(saga_file)
+        env = comments_block.read_envelope(saga_file)
         env["inline"] = [
             {
                 "id": "c1",
@@ -202,14 +202,14 @@ def test_put_updates_the_file_and_reopen_sees_it(saga_file):
         assert status == 200 and body["updatedAt"] == 111
 
     # Reopen from disk: the comment is now part of the file.
-    reopened = block.read_envelope(saga_file)
+    reopened = comments_block.read_envelope(saga_file)
     assert reopened["inline"][0]["body"] == "needs a docstring"
 
 
 def test_restart_with_new_token_still_flushes(saga_file):
     # First session writes one comment, then "crashes".
     with _running(saga_file) as (base, port, token):
-        env = block.read_envelope(saga_file)
+        env = comments_block.read_envelope(saga_file)
         env["overall"] = {"body": "first", "updatedAt": 1, "deletedAt": None}
         _request(
             f"{base}/api/comments",
@@ -220,7 +220,7 @@ def test_restart_with_new_token_still_flushes(saga_file):
 
     # A fresh server mints a new token; the buffered envelope flushes under it.
     with _running(saga_file) as (base, port, token2):
-        env = block.read_envelope(saga_file)
+        env = comments_block.read_envelope(saga_file)
         env["overall"] = {"body": "second", "updatedAt": 2, "deletedAt": None}
         status, _ = _request(
             f"{base}/api/comments",
@@ -229,11 +229,11 @@ def test_restart_with_new_token_still_flushes(saga_file):
             headers={"Host": f"127.0.0.1:{port}", "X-Saga-Token": token2},
         )
         assert status == 200
-    assert block.read_envelope(saga_file)["overall"]["body"] == "second"
+    assert comments_block.read_envelope(saga_file)["overall"]["body"] == "second"
 
 
 def test_publish_agent_returns_the_envelope(saga_file):
-    env = block.read_envelope(saga_file)
+    env = comments_block.read_envelope(saga_file)
     env["inline"] = [
         {
             "id": "c1",
@@ -245,7 +245,7 @@ def test_publish_agent_returns_the_envelope(saga_file):
             "deletedAt": None,
         }
     ]
-    block.write_envelope(saga_file, env)
+    comments_block.write_envelope(saga_file, env)
     with _running(saga_file) as (base, port, token):
         status, body = _request(
             f"{base}/api/publish",

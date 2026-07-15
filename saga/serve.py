@@ -3,7 +3,7 @@
 A browser page cannot write to its own file on disk portably (the File System
 Access API is Chromium-only), so saga owns a tiny loopback HTTP server that does
 it. The server holds **no state of its own**: the saga HTML file is the durable
-store (comments live in its embedded block, see ``block.py``), ``localStorage``
+store (comments live in its embedded block, see ``comments_block.py``), ``localStorage``
 is the browser's outage buffer, and the write token lives only in memory.
 
 Security, even though it's local: it binds ``127.0.0.1`` only, validates the
@@ -30,7 +30,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import cast
 
-from . import block
+from . import comments_block
 from .comments import agent_view, create_github_review
 from .diff import repo_root_from
 from .model import SagaError
@@ -133,7 +133,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(
                 200,
                 {
-                    "schema": block.SCHEMA,
+                    "schema": comments_block.SCHEMA,
                     "sagaId": self._srv.saga_id,
                     "token": self._srv.saga_token,
                 },
@@ -156,13 +156,13 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(409, {"error": "sagaId mismatch"})
             return
         try:
-            block.validate_envelope(data)
-        except block.BlockError as e:
+            comments_block.validate_envelope(data)
+        except comments_block.BlockError as e:
             self._send_json(400, {"error": str(e)})
             return
         try:
-            block.write_envelope(self._srv.saga_file, data)
-        except block.SentinelsMissing:
+            comments_block.write_envelope(self._srv.saga_file, data)
+        except comments_block.SentinelsMissing:
             self._send_json(422, {"error": "comments block sentinels missing"})
             return
         self._send_json(200, {"ok": True, "updatedAt": data.get("updatedAt", 0)})
@@ -179,8 +179,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": "invalid JSON"})
             return
 
-        envelope = block.read_envelope(self._srv.saga_file)
-        meta = block.read_saga_meta(self._srv.saga_file)
+        envelope = comments_block.read_envelope(self._srv.saga_file)
+        meta = comments_block.read_saga_meta(self._srv.saga_file)
         if mode == "github":
             repo_root = repo_root_from(Path.cwd()) or Path.cwd()
             try:
@@ -207,8 +207,8 @@ def make_server(
     """
     file_path = Path(file_path)
     try:
-        env = block.read_envelope(file_path)
-    except block.SentinelsMissing as e:
+        env = comments_block.read_envelope(file_path)
+    except comments_block.SentinelsMissing as e:
         raise SagaError(
             f"{file_path} has no saga comments block — it is not a servable saga."
         ) from e
