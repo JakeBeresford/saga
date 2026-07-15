@@ -267,12 +267,17 @@
   border: 1px solid var(--line); border-radius: var(--radius); padding: 2px 8px;
 }
 .saga-file-cmt-btn:hover { border-color: var(--accent); color: var(--text); }
+/* A file with a saved note reads as active, so the ✓ isn't the only signal. */
+.saga-file-cmt-btn.saga-has-comment {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-tint);
+}
 .saga-file-cmt-panel {
-  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px;
   background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 14px;
 }
 /* An explicit display defeats the `hidden` attribute's UA display:none — restore it. */
 .saga-file-cmt-panel[hidden] { display: none; }
+.saga-file-cmt-panel .saga-cmt-composer { margin-top: 8px; }
+.saga-file-cmt-panel .saga-cmt-composer:first-child { margin-top: 0; }
 .saga-file-cmt-panel .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
 
 /* The clickable file path in a diff header inherits diff2html's file-name colour;

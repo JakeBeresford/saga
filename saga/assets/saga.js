@@ -420,31 +420,72 @@
     renderThread(td, path, line, side, row);
   }
 
-  // Per-file comment control injected into a diff2html file header.
+  // Per-file comment control injected into a diff2html file header. The panel
+  // re-renders after every save/delete so the reviewer gets the same visible
+  // feedback an inline thread does — the saved note shows above the editor, and
+  // the header button reflects whether a comment exists.
   function wireFileComment(fw, path) {
     const header = fw.querySelector('.d2h-file-header');
     if (!header) return;
     const btn = document.createElement('button');
     btn.className = 'saga-file-cmt-btn';
-    btn.textContent = '💬 File comment';
     header.appendChild(btn);
     const panel = document.createElement('div');
     panel.className = 'saga-file-cmt-panel';
-    const ta = document.createElement('textarea');
-    ta.className = 'saga-cmt-input';
-    ta.placeholder = 'Comment on the whole file…';
-    const rec = liveFileComment(path);
-    ta.value = rec ? rec.body : '';
-    const save = document.createElement('button');
-    save.className = 'saga-btn';
-    save.textContent = 'Save file comment';
-    save.addEventListener('click', () => {
-      setFileComment(path, ta.value.trim(), firstAnchor(fw));
-    });
-    panel.appendChild(ta);
-    panel.appendChild(save);
-    panel.hidden = !rec;
     header.parentNode.insertBefore(panel, header.nextSibling);
+
+    function refreshBtn() {
+      const rec = liveFileComment(path);
+      btn.textContent = rec ? '💬 File comment ✓' : '💬 File comment';
+      btn.classList.toggle('saga-has-comment', !!rec);
+    }
+
+    function render() {
+      panel.innerHTML = '';
+      const rec = liveFileComment(path);
+      if (rec) {
+        const item = document.createElement('div');
+        item.className = 'saga-cmt';
+        const body = document.createElement('div');
+        body.className = 'saga-cmt-body';
+        body.innerHTML = renderMarkdown(rec.body);
+        const del = document.createElement('button');
+        del.className = 'saga-cmt-del';
+        del.textContent = '✕';
+        del.title = 'Delete file comment';
+        del.addEventListener('click', () => {
+          deleteRecord(rec);
+          render();
+          refreshBtn();
+        });
+        item.appendChild(body);
+        item.appendChild(del);
+        panel.appendChild(item);
+      }
+      const composer = document.createElement('div');
+      composer.className = 'saga-cmt-composer';
+      const ta = document.createElement('textarea');
+      ta.className = 'saga-cmt-input';
+      ta.placeholder = 'Comment on the whole file…';
+      ta.value = rec ? rec.body : '';
+      const save = document.createElement('button');
+      save.className = 'saga-btn';
+      save.textContent = rec ? 'Update file comment' : 'Save file comment';
+      save.addEventListener('click', () => {
+        const v = ta.value.trim();
+        if (!v && !rec) return;
+        setFileComment(path, v, firstAnchor(fw));
+        render();
+        refreshBtn();
+      });
+      composer.appendChild(ta);
+      composer.appendChild(save);
+      panel.appendChild(composer);
+    }
+
+    refreshBtn();
+    render();
+    panel.hidden = !liveFileComment(path);
     btn.addEventListener('click', () => { panel.hidden = !panel.hidden; });
   }
 
