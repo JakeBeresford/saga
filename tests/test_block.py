@@ -2,7 +2,6 @@
 ``<``-escaping that keeps a comment body from closing the script tag,
 idempotence, sentinel validation, and saga-metadata recovery."""
 
-
 import pytest
 
 from saga import block

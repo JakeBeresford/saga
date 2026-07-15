@@ -41,6 +41,7 @@ from .diff import (
 from .generate import generate
 from .model import SagaError
 from .render import render
+from .serve import serve as serve_saga
 
 # GUI editors that register a URL protocol, so a browser can open a file in
 # them via <scheme>://file/<abs-path>. Keyed by the binary $EDITOR/$VISUAL names.
@@ -95,6 +96,27 @@ app = typer.Typer(
     cls=SagaGroup,
 )
 app.add_typer(comments_app, name="comments")
+
+
+@app.command("serve")
+def serve_cmd(
+    file: Path = typer.Argument(..., help="the saga HTML file to serve"),
+    port: int = typer.Option(
+        None, "--port", help="port to bind (default: derived from the saga id)"
+    ),
+    open_browser: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="open the served page in a browser (default: on)",
+    ),
+) -> None:
+    """Serve a saga locally so its comments persist into the file and can be
+    published to GitHub. Loopback only; Ctrl-C to stop."""
+    try:
+        serve_saga(file, port=port, open_browser=open_browser)
+    except SagaError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
 
 
 def _version_callback(value: bool) -> None:
