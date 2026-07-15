@@ -1,16 +1,24 @@
 // PR saga: chapter-based review of one change set.
 //
 // Standalone static build: the saga payload is inlined into the page as
-// window.__sagaData (verdict + chapters, each with its reconstructed
-// diff). This file renders it — a table of contents (the entry point) and a
-// chapter reader — tracks per-chapter mark-as-read in localStorage, and lets a
-// reviewer leave inline / per-file / overall comments (also drafted in
-// localStorage) that the Copy buttons hand off to the `saga comments` CLI as a
-// base64 `--data` payload. No server, no fetch.
+// window.__sagaData (verdict + chapters, each with its reconstructed diff), and
+// the review comments live in an embedded JSON block (#saga-comments) that is
+// the durable source of truth. This file renders the saga — a table of contents
+// and a chapter reader — tracks per-chapter mark-as-read, and lets a reviewer
+// leave inline / per-file / overall comments.
+//
+// Two runtime modes via progressive enhancement:
+//   * Served  (origin http://127.0.0.1:PORT, `saga serve` reachable): edits
+//     autosave into the file over the API, and Publish/Read are live buttons.
+//   * Static  (file://, no server): drafting still works and buffers in
+//     localStorage; Publish/Read are hidden and a banner nudges the reviewer to
+//     reopen through `saga serve`.
+// Reading persisted comments never needs the server — the page always hydrates
+// from the embedded block on load.
 
 (function () {
   const data = window.__sagaData || {chapters: [], verdict: null, branch: ''};
-  const slug = data.branch || 'saga';
+  const readSlug = data.branch || 'saga';
   const CONFIG = {
     drawFileList: false, matching: 'lines',
     outputFormat: 'line-by-line', highlight: true, colorScheme: 'dark',
@@ -61,7 +69,7 @@
 
   // --- mark-as-read (localStorage) -----------------------------------
 
-  function readKey() { return 'saga-read:' + slug; }
+  function readKey() { return 'saga-read:' + readSlug; }
   function readSet() {
     try { return new Set(JSON.parse(localStorage.getItem(readKey()) || '[]')); }
     catch (e) { return new Set(); }
@@ -73,39 +81,53 @@
     localStorage.setItem(readKey(), JSON.stringify([...s]));
   }
 
-  // --- comments (localStorage draft, copied to the CLI as --data) ----
+  // --- comment store (embedded block + localStorage buffer) ----------
+  // The envelope is the merge of the file's embedded block and this origin's
+  // localStorage draft (see saga-merge.js). Every mutation stamps updatedAt,
+  // writes the buffer synchronously (immediate durability), and — when served —
+  // schedules a debounced save into the file.
 
-  let comments = {files: {}, overall: ''};
+  let sagaId = '';
+  let env = {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
 
-  function commentsKey() { return 'saga-comments:' + slug; }
-  function loadComments() {
-    try {
-      const c = JSON.parse(localStorage.getItem(commentsKey()) || '{}');
-      if (!c.files || typeof c.files !== 'object') c.files = {};
-      if (typeof c.overall !== 'string') c.overall = '';
-      return c;
-    } catch (e) { return {files: {}, overall: ''}; }
+  function now() { return Date.now(); }
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'c' + now().toString(16) + Math.random().toString(16).slice(2);
   }
-  function persist() {
-    localStorage.setItem(commentsKey(), JSON.stringify(comments));
-    updateCount();
+
+  function parseEmbedded() {
+    const el = $('saga-comments');
+    if (!el) return null;
+    try { return JSON.parse(el.textContent); } catch (e) { return null; }
   }
-  function fileEntry(path) {
-    if (!comments.files[path]) comments.files[path] = {file_comment: '', file_anchor: null, inline: []};
-    return comments.files[path];
+
+  function bufferKey() { return 'saga:' + sagaId + ':comments'; }
+  function loadBuffer() {
+    try { return JSON.parse(localStorage.getItem(bufferKey()) || 'null'); }
+    catch (e) { return null; }
   }
-  function inlineFor(path, line, side) {
-    const e = comments.files[path];
-    if (!e || !e.inline) return [];
-    return e.inline.filter((c) => c.line === line && c.side === side);
+  function saveBuffer() {
+    try { localStorage.setItem(bufferKey(), JSON.stringify(env)); } catch (e) {}
   }
+
+  // Live (non-tombstoned) accessors used for display.
+  function liveInline(path, line, side) {
+    return env.inline.filter((c) => !c.deletedAt &&
+      c.path === path && c.line === line && c.side === side);
+  }
+  function liveFileComment(path) {
+    return env.file.find((f) => !f.deletedAt && f.path === path) || null;
+  }
+  function liveOverall() {
+    return env.overall && !env.overall.deletedAt ? env.overall : null;
+  }
+
   function commentCount() {
-    let n = 0;
-    Object.values(comments.files).forEach((f) => {
-      n += (f.inline ? f.inline.length : 0);
-      if (f.file_comment && f.file_comment.trim()) n += 1;
-    });
-    if (comments.overall && comments.overall.trim()) n += 1;
+    let n = env.inline.filter((c) => !c.deletedAt).length;
+    n += env.file.filter((f) => !f.deletedAt).length;
+    const o = liveOverall();
+    if (o && o.body && o.body.trim()) n += 1;
     return n;
   }
   function updateCount() {
@@ -114,6 +136,198 @@
     const n = commentCount();
     el.textContent = n === 1 ? '1 comment' : n + ' comments';
   }
+
+  // Every edit funnels through here: recompute the roll-up timestamp, persist
+  // the buffer, refresh the count, and (served) schedule a save into the file.
+  function onChange() {
+    SagaMerge.recomputeUpdatedAt(env);
+    saveBuffer();
+    updateCount();
+    if (mode === 'served') scheduleSync();
+  }
+
+  function addInline(path, line, side, body) {
+    env.inline.push({id: uid(), path: path, line: line, side: side,
+                     body: body, updatedAt: now(), deletedAt: null});
+    onChange();
+  }
+  function deleteRecord(rec) {
+    rec.deletedAt = now();
+    rec.updatedAt = now();
+    onChange();
+  }
+  function setFileComment(path, body, anchor) {
+    const rec = liveFileComment(path);
+    if (body) {
+      if (rec) { rec.body = body; rec.updatedAt = now(); }
+      else env.file.push({id: uid(), path: path, line: anchor.line, side: anchor.side,
+                          body: body, updatedAt: now(), deletedAt: null});
+    } else if (rec) {
+      rec.deletedAt = now();
+      rec.updatedAt = now();
+    }
+    onChange();
+  }
+  function setOverall(body) {
+    if (body) {
+      if (env.overall && !env.overall.deletedAt) {
+        env.overall.body = body; env.overall.updatedAt = now();
+      } else {
+        env.overall = {body: body, updatedAt: now(), deletedAt: null};
+      }
+    } else if (env.overall) {
+      env.overall.deletedAt = now();
+      env.overall.updatedAt = now();
+    }
+    onChange();
+  }
+
+  // --- connection controller (served ⇄ buffering) --------------------
+  // GET /api/session is the mode probe, token source, and heartbeat, unified.
+  // The UI is driven off the last write's real outcome, never a one-shot probe.
+
+  let mode = 'static';        // 'served' | 'static'
+  let token = null;
+  let syncTimer = null;
+  let reconnectTimer = null;
+
+  function setStatus(state) {
+    const el = $('saga-status');
+    if (!el) return;
+    const labels = {
+      saved: 'Saved', saving: 'Saving…',
+      reconnecting: 'Reconnecting…', draft: 'Draft (this browser only)',
+    };
+    el.textContent = labels[state] || '';
+    el.dataset.state = state;
+  }
+
+  function scheduleSync() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(sync, 500);
+  }
+
+  function sync() {
+    setStatus('saving');
+    return fetch('/api/comments', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
+      body: JSON.stringify(env),
+    }).then((res) => {
+      if (!res.ok) throw new Error('PUT ' + res.status);
+      setStatus('saved');
+    }).catch(() => { enterBuffering(); });
+  }
+
+  // On a failed write, keep buffering to localStorage and poll the session
+  // endpoint; a restart mints a new token, so refresh it before flushing.
+  function enterBuffering() {
+    setStatus('reconnecting');
+    if (reconnectTimer) return;
+    reconnectTimer = setInterval(() => {
+      fetch('/api/session').then((res) => {
+        if (!res.ok) throw new Error('session ' + res.status);
+        return res.json();
+      }).then((s) => {
+        if (s.sagaId !== sagaId) return;
+        token = s.token;
+        clearInterval(reconnectTimer);
+        reconnectTimer = null;
+        sync();
+      }).catch(() => {});
+    }, 3000);
+  }
+
+  function detectMode() {
+    return fetch('/api/session').then((res) => {
+      if (!res.ok) throw new Error('session ' + res.status);
+      return res.json();
+    }).then((s) => {
+      if (s.sagaId !== sagaId) throw new Error('sagaId mismatch');
+      token = s.token;
+      mode = 'served';
+      applyMode();
+      // Reconcile the file with the merged (possibly newer) buffer on load.
+      sync();
+    }).catch(() => {
+      mode = 'static';
+      applyMode();
+    });
+  }
+
+  // Toggle the served-only controls and the static banner, and seed the pill.
+  function applyMode() {
+    const served = mode === 'served';
+    const banner = $('saga-static-banner');
+    if (banner) banner.hidden = served;
+    const publish = $('saga-publish');
+    const exportBtn = $('saga-export');
+    if (publish) publish.hidden = !served;
+    if (exportBtn) exportBtn.hidden = !served;
+    setStatus(served ? 'saved' : 'draft');
+  }
+
+  function notify(message, isError) {
+    const el = $('saga-notice');
+    if (!el) return;
+    el.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = isError ? 'saga-error' : 'saga-flash';
+    box.textContent = message;
+    el.appendChild(box);
+    if (!isError) setTimeout(() => { if (box.parentNode) box.remove(); }, 6000);
+  }
+
+  // --- publish / read (served only) ----------------------------------
+
+  function publishGithub(btn) {
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Publishing…';
+    fetch('/api/publish', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
+      body: JSON.stringify({mode: 'github'}),
+    }).then((res) => res.json().then((j) => ({ok: res.ok, j}))).then(({ok, j}) => {
+      if (!ok) throw new Error(j.error || 'publish failed');
+      notify(j.summary || 'Created a pending review on GitHub.');
+    }).catch((e) => notify('Publish failed: ' + e.message, true))
+      .finally(() => { btn.textContent = label; btn.disabled = false; });
+  }
+
+  function exportForAgent(btn) {
+    const label = btn.textContent;
+    btn.disabled = true;
+    fetch('/api/publish', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
+      body: JSON.stringify({mode: 'agent'}),
+    }).then((res) => res.json().then((j) => ({ok: res.ok, j}))).then(({ok, j}) => {
+      if (!ok) throw new Error(j.error || 'read failed');
+      return copyText(JSON.stringify(j.comments, null, 2));
+    }).then(() => {
+      btn.textContent = 'Copied ✓';
+      notify('Comments copied as JSON for a coding agent.');
+      setTimeout(() => { btn.textContent = label; }, 1500);
+    }).catch((e) => notify('Read failed: ' + e.message, true))
+      .finally(() => { btn.disabled = false; });
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } finally { ta.remove(); }
+    return Promise.resolve();
+  }
+
+  // --- inline comment threads ----------------------------------------
 
   // Read (file, line, side) from a diff2html line-by-line row. Added/context
   // lines anchor to the new-file number (RIGHT); pure deletions to the old
@@ -137,10 +351,12 @@
     return anchor || {line: 1, side: 'RIGHT'};
   }
 
-  // Render the comment thread + composer for one line into its cell.
-  function renderThread(td, path, line, side, row) {
+  // Render the comment thread for one line into its cell. The composer is only
+  // shown when showComposer is true, so a line with saved comments displays them
+  // on their own — clicking the line number again reveals the composer to add more.
+  function renderThread(td, path, line, side, row, showComposer) {
     td.innerHTML = '';
-    inlineFor(path, line, side).forEach((c) => {
+    liveInline(path, line, side).forEach((c) => {
       const item = document.createElement('div');
       item.className = 'saga-cmt';
       const body = document.createElement('div');
@@ -151,15 +367,15 @@
       del.textContent = '✕';
       del.title = 'Delete comment';
       del.addEventListener('click', () => {
-        const e = fileEntry(path);
-        e.inline.splice(e.inline.indexOf(c), 1);
-        persist();
-        renderThread(td, path, line, side, row);
+        deleteRecord(c);
+        if (!liveInline(path, line, side).length) row.remove();
+        else renderThread(td, path, line, side, row, false);
       });
       item.appendChild(body);
       item.appendChild(del);
       td.appendChild(item);
     });
+    if (!showComposer) return null;
     const composer = document.createElement('div');
     composer.className = 'saga-cmt-composer';
     const ta = document.createElement('textarea');
@@ -171,21 +387,21 @@
     save.addEventListener('click', () => {
       const v = ta.value.trim();
       if (!v) return;
-      fileEntry(path).inline.push({line: line, side: side, body: v});
-      persist();
-      renderThread(td, path, line, side, row);
+      addInline(path, line, side, v);
+      renderThread(td, path, line, side, row, false);
     });
     const cancel = document.createElement('button');
     cancel.className = 'saga-btn saga-cmt-cancel';
     cancel.textContent = 'Cancel';
     cancel.addEventListener('click', () => {
-      if (!inlineFor(path, line, side).length) row.remove();
-      else ta.value = '';
+      if (!liveInline(path, line, side).length) row.remove();
+      else renderThread(td, path, line, side, row, false);
     });
     composer.appendChild(ta);
     composer.appendChild(save);
     composer.appendChild(cancel);
     td.appendChild(composer);
+    ta.focus();
     return ta;
   }
 
@@ -193,8 +409,9 @@
     const next = tr.nextSibling;
     if (next && next.classList && next.classList.contains('saga-cmt-row') &&
         next.dataset.line === String(line) && next.dataset.side === side) {
-      const ta = next.querySelector('.saga-cmt-input');
-      if (ta) ta.focus();
+      // Row already exists (from a prior comment or the initial load); reveal the
+      // composer so the reviewer can add another comment on the same line.
+      renderThread(next.querySelector('td'), path, line, side, next, true);
       return;
     }
     const row = document.createElement('tr');
@@ -206,39 +423,78 @@
     td.className = 'saga-cmt-cell';
     row.appendChild(td);
     tr.parentNode.insertBefore(row, tr.nextSibling);
-    renderThread(td, path, line, side, row);
+    // A brand-new row with existing saved comments comes from the initial load
+    // pass; show those comments without a composer. A click on a bare line opens
+    // the composer to write the first comment.
+    renderThread(td, path, line, side, row, !liveInline(path, line, side).length);
   }
 
-  // Per-file comment control injected into a diff2html file header.
+  // Per-file comment control injected into a diff2html file header. The panel
+  // re-renders after every save/delete so the reviewer gets the same visible
+  // feedback an inline thread does — the saved note shows above the editor, and
+  // the header button reflects whether a comment exists.
   function wireFileComment(fw, path) {
     const header = fw.querySelector('.d2h-file-header');
     if (!header) return;
     const btn = document.createElement('button');
     btn.className = 'saga-file-cmt-btn';
-    btn.textContent = '💬 File comment';
     header.appendChild(btn);
     const panel = document.createElement('div');
     panel.className = 'saga-file-cmt-panel';
-    const ta = document.createElement('textarea');
-    ta.className = 'saga-cmt-input';
-    ta.placeholder = 'Comment on the whole file…';
-    const entry = comments.files[path];
-    ta.value = entry && entry.file_comment ? entry.file_comment : '';
-    const save = document.createElement('button');
-    save.className = 'saga-btn';
-    save.textContent = 'Save file comment';
-    save.addEventListener('click', () => {
-      const v = ta.value.trim();
-      const e = fileEntry(path);
-      e.file_comment = v;
-      if (v && !e.file_anchor) e.file_anchor = firstAnchor(fw);
-      if (!v) e.file_anchor = null;
-      persist();
-    });
-    panel.appendChild(ta);
-    panel.appendChild(save);
-    panel.hidden = !(entry && entry.file_comment);
     header.parentNode.insertBefore(panel, header.nextSibling);
+
+    function refreshBtn() {
+      const rec = liveFileComment(path);
+      btn.textContent = rec ? '💬 File comment ✓' : '💬 File comment';
+      btn.classList.toggle('saga-has-comment', !!rec);
+    }
+
+    function render() {
+      panel.innerHTML = '';
+      const rec = liveFileComment(path);
+      if (rec) {
+        const item = document.createElement('div');
+        item.className = 'saga-cmt';
+        const body = document.createElement('div');
+        body.className = 'saga-cmt-body';
+        body.innerHTML = renderMarkdown(rec.body);
+        const del = document.createElement('button');
+        del.className = 'saga-cmt-del';
+        del.textContent = '✕';
+        del.title = 'Delete file comment';
+        del.addEventListener('click', () => {
+          deleteRecord(rec);
+          render();
+          refreshBtn();
+        });
+        item.appendChild(body);
+        item.appendChild(del);
+        panel.appendChild(item);
+      }
+      const composer = document.createElement('div');
+      composer.className = 'saga-cmt-composer';
+      const ta = document.createElement('textarea');
+      ta.className = 'saga-cmt-input';
+      ta.placeholder = 'Comment on the whole file…';
+      ta.value = rec ? rec.body : '';
+      const save = document.createElement('button');
+      save.className = 'saga-btn';
+      save.textContent = rec ? 'Update file comment' : 'Save file comment';
+      save.addEventListener('click', () => {
+        const v = ta.value.trim();
+        if (!v && !rec) return;
+        setFileComment(path, v, firstAnchor(fw));
+        render();
+        refreshBtn();
+      });
+      composer.appendChild(ta);
+      composer.appendChild(save);
+      panel.appendChild(composer);
+    }
+
+    refreshBtn();
+    render();
+    panel.hidden = !liveFileComment(path);
     btn.addEventListener('click', () => { panel.hidden = !panel.hidden; });
   }
 
@@ -289,70 +545,10 @@
         lnCell.classList.add('saga-linenum');
         lnCell.title = 'Comment on this line';
         lnCell.addEventListener('click', () => insertComposerRow(tr, path, anchor.line, anchor.side));
-        if (inlineFor(path, anchor.line, anchor.side).length) {
+        if (liveInline(path, anchor.line, anchor.side).length) {
           insertComposerRow(tr, path, anchor.line, anchor.side);
         }
       });
-    });
-  }
-
-  // Assemble the comments payload — the same shape the CLI validates.
-  function buildPayload() {
-    const files = {};
-    Object.keys(comments.files).forEach((p) => {
-      const e = comments.files[p];
-      const inline = (e.inline || []).filter((c) => c.body && c.body.trim());
-      const fc = (e.file_comment || '').trim();
-      if (!inline.length && !fc) return;
-      const out = {};
-      if (fc) {
-        out.file_comment = fc;
-        if (e.file_anchor) out.file_anchor = e.file_anchor;
-      }
-      if (inline.length) out.inline = inline;
-      files[p] = out;
-    });
-    return {
-      branch: data.branch || '',
-      base: data.base || '',
-      overall: (comments.overall || '').trim(),
-      files: files,
-    };
-  }
-
-  // base64(UTF-8 JSON) — the payload rides inside the copied command as
-  // `--data`, so the reviewer never has to find a file on disk.
-  function encodePayload() {
-    const bytes = new TextEncoder().encode(JSON.stringify(buildPayload()));
-    let bin = '';
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin);
-  }
-
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
-    // file:// fallback where the async clipboard API is unavailable.
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } finally { ta.remove(); }
-    return Promise.resolve();
-  }
-
-  // Copy a ready-to-run `saga comments <sub> --data …` command. The reviewer
-  // pastes it into their terminal (push) or coding agent (read).
-  function copyCommand(sub, btn) {
-    const cmd = 'saga comments ' + sub + ' --data ' + encodePayload();
-    copyText(cmd).then(() => {
-      const label = btn.dataset.label;
-      btn.textContent = 'Copied ✓';
-      btn.disabled = true;
-      setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 1500);
     });
   }
 
@@ -360,11 +556,17 @@
 
   function show() {
     chapters = data.chapters || [];
-    comments = loadComments();
+    const fileState = parseEmbedded() ||
+      {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
+    sagaId = fileState.sagaId || readSlug;
+    env = SagaMerge.mergeEnvelope(fileState, loadBuffer(), sagaId);
+    // A merge may have pulled in a newer buffer than the file — persist it.
+    saveBuffer();
     initTheme();
     renderHead();
     renderVerdict(data.verdict, data.stats);
     renderTOC();
+    detectMode();
   }
 
   // --- header (title, summary, provenance) ----------------------------
@@ -440,19 +642,10 @@
   function renderTOC() {
     const toc = $('saga-toc');
     $('saga-reader').hidden = true;
+    $('saga-review-view').hidden = true;
     toc.hidden = false;
     const rd = readSet();
-    let html =
-      '<div class="saga-review">' +
-      '<h2 class="saga-toc-title">Review</h2>' +
-      '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
-      '<div class="saga-review-actions">' +
-      '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
-      '<button class="saga-btn" id="saga-copy-agent" data-label="Copy for agent">Copy for agent</button>' +
-      '<button class="saga-btn" id="saga-copy-gh" data-label="Copy for GitHub">Copy for GitHub</button>' +
-      '</div>' +
-      '</div>' +
-      '<h2 class="saga-toc-title">Chapters</h2>';
+    let html = '<h2 class="saga-toc-title">Chapters</h2>';
     chapters.forEach((ch, i) => {
       html +=
         '<button class="saga-toc-item" data-i="' + i + '">' +
@@ -462,20 +655,65 @@
         '<div class="saga-badges">' + badges(ch, rd.has(ch.id)) + '</div>' +
         '</button>';
     });
+    html +=
+      '<button class="saga-toc-item saga-wrapup-item" id="saga-wrapup-item">' +
+      '<div class="saga-toc-head"><span class="saga-num">✓</span>' +
+      '<span class="saga-toc-titletext">Wrap up →</span></div>' +
+      '<div class="saga-toc-summary">Leave an overall comment, then publish or copy for an agent.</div>' +
+      '</button>';
     toc.innerHTML = html;
-    toc.querySelectorAll('.saga-toc-item').forEach((b) => {
+    toc.querySelectorAll('.saga-toc-item[data-i]').forEach((b) => {
       b.addEventListener('click', () => openChapter(parseInt(b.dataset.i, 10)));
     });
+    $('saga-wrapup-item').addEventListener('click', openReview);
+  }
+
+  // The wrap-up page: overall comment + publish/export controls. Reached from the
+  // "Wrap up" nav button (any chapter) or the index card — no longer front-loaded
+  // on the index. It owns the review element IDs, so it is the only live copy.
+  function openReview() {
+    $('saga-toc').hidden = true;
+    $('saga-reader').hidden = true;
+    const view = $('saga-review-view');
+    view.hidden = false;
+    const bannerText = 'Drafting in this browser only — open with ' +
+      '<code>saga serve ./saga.html</code> to save into the file and publish to GitHub.';
+    const nav =
+      '<div class="saga-reader-nav saga-nav-top">' +
+      '<button class="saga-btn saga-toc-link">☰ Contents</button>' +
+      '<span class="saga-progress">Wrap up</span>' +
+      '<span class="saga-nav-spacer"></span>' +
+      '<button class="saga-btn saga-prev"' + (chapters.length ? '' : ' disabled') + '>← Prev</button>' +
+      '</div>';
+    view.innerHTML =
+      nav +
+      '<div class="saga-review">' +
+      '<h2 class="saga-toc-title">Wrap up</h2>' +
+      '<div id="saga-static-banner" class="saga-banner" hidden>' + bannerText + '</div>' +
+      '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
+      '<div class="saga-review-actions">' +
+      '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
+      '<span class="saga-status-pill" id="saga-status"></span>' +
+      '<button class="saga-btn" id="saga-export" data-label="Copy for agent" hidden>Copy for agent</button>' +
+      '<button class="saga-btn saga-btn-primary" id="saga-publish" hidden>Publish to GitHub</button>' +
+      '</div>' +
+      '</div>';
+    view.querySelectorAll('.saga-toc-link').forEach((b) => b.addEventListener('click', renderTOC));
+    view.querySelectorAll('.saga-prev').forEach((b) =>
+      b.addEventListener('click', () => openChapter(chapters.length - 1)));
     const overall = $('saga-overall');
     if (overall) {
-      overall.value = comments.overall || '';
-      overall.addEventListener('input', () => { comments.overall = overall.value; persist(); });
+      const o = liveOverall();
+      overall.value = o ? o.body : '';
+      overall.addEventListener('input', () => setOverall(overall.value.trim()));
     }
-    const agentBtn = $('saga-copy-agent');
-    if (agentBtn) agentBtn.addEventListener('click', () => copyCommand('read', agentBtn));
-    const ghBtn = $('saga-copy-gh');
-    if (ghBtn) ghBtn.addEventListener('click', () => copyCommand('push', ghBtn));
+    const publish = $('saga-publish');
+    if (publish) publish.addEventListener('click', () => publishGithub(publish));
+    const exportBtn = $('saga-export');
+    if (exportBtn) exportBtn.addEventListener('click', () => exportForAgent(exportBtn));
     updateCount();
+    applyMode();
+    window.scrollTo(0, 0);
   }
 
   // --- chapter reader ------------------------------------------------
@@ -484,7 +722,9 @@
     current = i;
     const ch = chapters[i];
     if (!ch) return;
+    const isLast = i === chapters.length - 1;
     $('saga-toc').hidden = true;
+    $('saga-review-view').hidden = true;
     const reader = $('saga-reader');
     reader.hidden = false;
 
@@ -505,7 +745,8 @@
       '<span class="saga-progress">Chapter ' + (i + 1) + ' of ' + chapters.length + '</span>' +
       '<span class="saga-nav-spacer"></span>' +
       '<button class="saga-btn saga-prev"' + (i === 0 ? ' disabled' : '') + '>← Prev</button>' +
-      '<button class="saga-btn saga-next"' + (i === chapters.length - 1 ? ' disabled' : '') + '>Next →</button>' +
+      (isLast ? '' : '<button class="saga-btn saga-next">Next →</button>') +
+      '<button class="saga-btn saga-wrapup">Wrap up →</button>' +
       '</div>';
 
     reader.innerHTML =
@@ -526,6 +767,7 @@
     reader.querySelectorAll('.saga-toc-link').forEach((b) => b.addEventListener('click', renderTOC));
     reader.querySelectorAll('.saga-prev').forEach((b) => b.addEventListener('click', () => openChapter(i - 1)));
     reader.querySelectorAll('.saga-next').forEach((b) => b.addEventListener('click', () => openChapter(i + 1)));
+    reader.querySelectorAll('.saga-wrapup').forEach((b) => b.addEventListener('click', openReview));
     $('saga-read-cb').addEventListener('change', (e) => setRead(ch.id, e.target.checked));
 
     renderChapterDiff(ch);

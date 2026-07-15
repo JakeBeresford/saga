@@ -22,6 +22,7 @@ Pass --intent PATH to give the model a plan/spec for richer, plan-aware narratio
 from __future__ import annotations
 
 import os
+import sys
 import webbrowser
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -41,6 +42,7 @@ from .diff import (
 from .generate import generate
 from .model import SagaError
 from .render import render
+from .serve import serve as serve_saga
 
 # GUI editors that register a URL protocol, so a browser can open a file in
 # them via <scheme>://file/<abs-path>. Keyed by the binary $EDITOR/$VISUAL names.
@@ -51,6 +53,11 @@ _EDITOR_SCHEMES = {
     "cursor": "cursor",
     "windsurf": "windsurf",
 }
+
+
+def _interactive() -> bool:
+    """Whether we're attached to an interactive terminal (drives auto-serve)."""
+    return sys.stdout.isatty()
 
 
 def _editor_scheme() -> str:
@@ -95,6 +102,27 @@ app = typer.Typer(
     cls=SagaGroup,
 )
 app.add_typer(comments_app, name="comments")
+
+
+@app.command("serve")
+def serve_cmd(
+    file: Path = typer.Argument(..., help="the saga HTML file to serve"),
+    port: int = typer.Option(
+        None, "--port", help="port to bind (default: derived from the saga id)"
+    ),
+    open_browser: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="open the served page in a browser (default: on)",
+    ),
+) -> None:
+    """Serve a saga locally so its comments persist into the file and can be
+    published to GitHub. Loopback only; Ctrl-C to stop."""
+    try:
+        serve_saga(file, port=port, open_browser=open_browser)
+    except SagaError as e:
+        typer.echo(f"error: {e}", err=True)
+        raise typer.Exit(1) from e
 
 
 def _version_callback(value: bool) -> None:
@@ -153,6 +181,15 @@ def main(
         True,
         "--open/--no-open",
         help="open the result in a browser (default: on; use --no-open to disable)",
+    ),
+    serve: bool = typer.Option(
+        True,
+        "--serve/--no-serve",
+        help=(
+            "after generating, serve the saga locally so comments persist into "
+            "the file and can be published (interactive terminals only); "
+            "--no-serve writes and exits"
+        ),
     ),
 ) -> None:
     """Generate a self-contained PR saga as static HTML."""
@@ -214,7 +251,14 @@ def main(
 
     output.write_text(html)
     typer.echo(f"Wrote {output} ({len(saga.chapters)} chapters).", err=True)
-    if open_browser:
+
+    # Interactive runs serve the file so comments autosave into it and can be
+    # published — serve is the front door (a bare file:// page can neither save
+    # nor publish). Non-interactive runs (CI, PR-URL batch) or --no-serve just
+    # write the file, optionally opening it as a static page.
+    if serve and _interactive():
+        serve_saga(output, open_browser=open_browser)
+    elif open_browser:
         webbrowser.open(output.resolve().as_uri())
 
 

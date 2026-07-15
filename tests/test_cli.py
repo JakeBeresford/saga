@@ -256,6 +256,51 @@ def test_main_pr_error_maps_to_exit_1(tmp_path, monkeypatch):
     assert "gh CLI not found" in result.output
 
 
+def test_main_non_interactive_writes_and_exits_without_serving(
+    git_repo: Path, tmp_path, stub_pipeline, monkeypatch
+):
+    """Piped/CI runs (no TTY) must not bind a port — they write and exit."""
+    served = []
+    monkeypatch.setattr(cli, "serve_saga", lambda *a, **k: served.append(a))
+    monkeypatch.setattr(cli, "_interactive", lambda: False)
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-open"]
+    )
+    assert result.exit_code == 0
+    assert served == []
+
+
+def test_main_interactive_auto_serves_the_output(
+    git_repo: Path, tmp_path, stub_pipeline, monkeypatch
+):
+    """An interactive terminal auto-serves the freshly written file."""
+    served = []
+    monkeypatch.setattr(cli, "serve_saga", lambda f, **k: served.append((f, k)))
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    out = tmp_path / "o.html"
+    result = runner.invoke(app, ["--repo", str(git_repo), "-o", str(out)])
+    assert result.exit_code == 0
+    assert served and Path(served[0][0]) == out
+    assert served[0][1]["open_browser"] is True
+
+
+def test_main_no_serve_skips_serving_even_interactively(
+    git_repo: Path, tmp_path, stub_pipeline, monkeypatch
+):
+    served = []
+    monkeypatch.setattr(cli, "serve_saga", lambda *a, **k: served.append(a))
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    opened = []
+    monkeypatch.setattr(cli.webbrowser, "open", lambda uri: opened.append(uri))
+    result = runner.invoke(
+        app, ["--repo", str(git_repo), "-o", str(tmp_path / "o.html"), "--no-serve"]
+    )
+    assert result.exit_code == 0
+    assert served == []
+    # --no-serve still opens the static file by default.
+    assert opened and opened[0].startswith("file://")
+
+
 def test_main_model_flag_is_passed_through(git_repo: Path, tmp_path, stub_pipeline):
     runner.invoke(
         app,

@@ -13,4 +13,5 @@ __pycache__/
 !**/.vscode/extensions.json
 
 dist/
+docs/plans/
 saga.html

@@ -31,7 +31,7 @@ run it.
 4. **Run it** from inside the target repo:
 
    ```sh
-   saga --base <base> --head <head> -o saga.html --open
+   saga --base <base> --head <head> -o saga.html --no-serve --open
    ```
 
    Requires `git` and an API key for the chosen provider (`ANTHROPIC_API_KEY`,
@@ -40,11 +40,26 @@ run it.
    `SAGA_MODEL` env var. Generation runs one LLM call and can take a minute on
    a large diff.
 
+   Pass `--no-serve` so the command writes the file and exits. Without it, an
+   interactive `saga` run stays in the foreground serving the file (so a reviewer's
+   comments save back into it); `--no-serve` is the right choice when running the
+   tool on the user's behalf.
+
 5. **Report** the output path (`saga.html`) and the chapter count printed on
    stderr. The file is fully self-contained — it can be opened offline, emailed, or
    hosted anywhere.
+
+   If the user wants to leave review comments, tell them to open the file through
+   the server so comments persist into it and can be published:
+
+   ```sh
+   saga serve ./saga.html
+   ```
 
 ## Notes
 
 - If generation fails (e.g. empty diff, missing API key, coverage gap), relay the
   error message to the user; it is written to stderr.
+- To act on a reviewer's comments, read them straight from the file:
+  `saga comments read ./saga.html` (JSON on stdout), or
+  `saga comments push ./saga.html` to post them as a pending GitHub review.

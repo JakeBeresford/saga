@@ -76,15 +76,16 @@ defines the change set, so `--base`, `--head`, and `--repo` are ignored.
 The optional positional argument is a GitHub PR URL (as above); all flags below
 apply to both modes.
 
-| Flag                   | Default                     | Meaning                                                                                            |
-| ---------------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--base`               | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`); local mode only |
-| `--head`               | current branch              | Head ref to walk through; local mode only                                                          |
-| `--intent PATH`        | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging |
-| `--model`              | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                          |
-| `-o, --output`         | `saga.html`                 | Output file                                                                                        |
-| `--repo`               | cwd                         | A path inside the target git repo; local mode only                                                |
-| `--open` / `--no-open` | on                          | Open the result in a browser (on by default; `--no-open` to disable)                               |
+| Flag                     | Default                     | Meaning                                                                                                                                                          |
+| ------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base`                 | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`); local mode only                                                            |
+| `--head`                 | current branch              | Head ref to walk through; local mode only                                                                                                                        |
+| `--intent PATH`          | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging                                                               |
+| `--model`                | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                                                                                        |
+| `-o, --output`           | `saga.html`                 | Output file                                                                                                                                                      |
+| `--repo`                 | cwd                         | A path inside the target git repo; local mode only                                                                                                               |
+| `--open` / `--no-open`   | on                          | Open the result in a browser (the served URL when serving, else the `file://` page)                                                                              |
+| `--serve` / `--no-serve` | on                          | On an interactive terminal, serve the saga after generating so comments save into the file (see [Reviewing](#reviewing-comments)); `--no-serve` writes and exits |
 
 ## Providers
 
@@ -92,12 +93,12 @@ The model is a single `provider/model` string, dispatched through `instructor`.
 Choose it with `--model` or the `SAGA_MODEL` environment variable, and set
 the matching API key:
 
-| Provider   | `--model` example                        | API key env var      |
-| ---------- | ---------------------------------------- | -------------------- |
-| Anthropic  | `anthropic/claude-opus-4-8`              | `ANTHROPIC_API_KEY`  |
-| OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`     |
-| OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY` |
-| Local      | `local/qwen2.5-coder:14b`                | none                 |
+| Provider   | `--model` example                        | API key env var          |
+| ---------- | ---------------------------------------- | ------------------------ |
+| Anthropic  | `anthropic/claude-opus-4-8`              | `ANTHROPIC_API_KEY`      |
+| OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`         |
+| OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY`     |
+| Local      | `local/qwen2.5-coder:14b`                | none                     |
 | Claude CLI | `claude-cli` or `claude-cli/sonnet`      | none (Claude Code login) |
 
 ```sh
@@ -160,29 +161,68 @@ cp -R "$(pwd)/skills" ~/.claude/skills/saga
 
 ## Reviewing: comments
 
-The saga page is also a lightweight review surface. Open `saga.html` and leave three
-kinds of comments — **inline** (click a line's number in any chapter's diff), **per-file**
-(the "💬 File comment" control in each file header), and one **overall** review comment
-(the box at the top of the Chapters list). Comments are drafted in your browser's
-`localStorage`, so they survive a reload.
+The saga page is also a lightweight review surface. Leave three kinds of comments —
+**inline** (click a line's number in any chapter's diff), **per-file** (the "💬 File
+comment" control in each file header), and one **overall** review comment (the box on the
+**Wrap up** page — reach it with the "Wrap up →" button in any chapter's nav or the card at
+the end of the chapters list).
 
-When you're done, click one of the copy buttons. Each puts a ready-to-run command on your
-clipboard with the comments encoded inline (`--data`), so there's no file to find on disk —
-paste it wherever you need it:
+Comments live **inside the HTML file**, in an embedded block that `saga serve` rewrites
+in place. That keeps the file a single portable artifact: you can commit it, email it, or
+open it offline, and the comments travel with it and reload every time — no server needed
+to _read_ them.
 
-```sh
-# "Copy for GitHub" → post everything as a single PENDING review (you submit it on GitHub).
-saga comments push --data <base64>
+### Open through `saga serve`
 
-# "Copy for agent" → emit the comments as JSON on stdout for a coding agent to act on.
-saga comments read --data <base64>
+Saving comments back into the file needs a local process (a browser can't portably write
+to its own file — the File System Access API is Chromium-only, so Safari and Firefox can't).
+So an interactive `saga` run **auto-starts a local server** and opens the saga through it:
+
+```
+serving at http://127.0.0.1:52345/ — Ctrl-C to stop
 ```
 
-Prefer a file? Both commands also accept `--comments <path>` for a `saga.comments.json` you
-write yourself (handy for scripting). `push` uses the `gh` CLI: it finds the open PR for the branch and creates one
-pending review (inline → line comments, per-file → a note anchored to the file's first
-changed line, overall → the review body). Nothing is submitted until you review and submit
-it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
+On that page, edits **autosave into the file** within a second (a status pill shows
+`Saved` / `Saving…` / `Reconnecting…`), and two buttons appear:
+
+- **Publish to GitHub** — posts everything as a single **pending** review via the `gh`
+  CLI (inline → line comments, per-file → a note anchored to the file's first changed
+  line, overall → the review body). Nothing is submitted until you review and submit it on
+  GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
+- **Copy for agent** — copies the comments as JSON for a coding agent to act on.
+
+To serve a saga you generated earlier (or received), point `saga serve` at it:
+
+```sh
+saga serve ./saga.html
+```
+
+The server is loopback-only (`127.0.0.1`), holds no state of its own (the file is the
+store), and needs no API key. Stop it with `Ctrl-C`.
+
+### Static mode (no server)
+
+If you open a saga as a bare `file://` — double-clicked, emailed, committed — there is no
+server, so **reading works but drafting is browser-only**: a banner appears and the pill
+reads `Draft (this browser only)`. Your drafts buffer in that browser's `localStorage`.
+
+**Reopen the file through `saga serve` _before_ commenting** to save into the file and
+publish. Drafts made on a bare `file://` page live under a different browser origin than
+the served page and cannot be recovered by serving later — so serve is the front door.
+
+### From the command line / a coding agent
+
+The same publish/read paths are available as commands that read the file's embedded block:
+
+```sh
+# Post the comments as a single PENDING review (you submit it on GitHub).
+saga comments push path/to/saga.html
+
+# Emit the comments as JSON on stdout for a coding agent to act on.
+saga comments read path/to/saga.html
+```
+
+Both default to `./saga.html`.
 
 ## How it works
 
@@ -193,7 +233,11 @@ it on GitHub. Requires the [`gh`](https://cli.github.com) CLI, authenticated.
    model via `instructor`, which returns chapters as schema-validated JSON. Coverage
    is **re-validated in code** — every hunk must belong to a chapter or generation fails.
 4. `render.py` reconstructs each chapter's diff and inlines everything into one
-   self-contained HTML file.
+   self-contained HTML file, including an empty comments block (`comments_block.py`) and a
+   per-file `sagaId`.
+5. `serve.py` serves that file on a loopback port derived from the `sagaId` and rewrites
+   the comments block in place as you review; `comments.py` reads the same block to
+   publish to GitHub or hand comments to an agent.
 
 ## Not included (yet)
 
