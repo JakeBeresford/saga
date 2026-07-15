@@ -178,9 +178,47 @@
   border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 20px;
 }
 .saga-review .saga-toc-title { margin-top: 0; }
-.saga-review-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.saga-review-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .saga-cmt-count { color: var(--text-dim); font-size: var(--fs-sm); font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
-.saga-review-actions .saga-btn { margin-left: auto; }
+/* The status pill and everything after it are pushed to the right edge. */
+.saga-status-pill { margin-left: auto; }
+
+/* Connection-state pill: reflects the last write's real outcome. Green when
+   saved, amber while saving/reconnecting, neutral for a browser-only draft. */
+.saga-status-pill {
+  font-size: var(--fs-xs); font-family: var(--font-mono); letter-spacing: var(--tracking-mono);
+  padding: 2px 10px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line); color: var(--text-dim); background: var(--surface-2);
+}
+.saga-status-pill[data-state="saved"] { color: var(--ok); border-color: var(--ok-solid); background: var(--ok-tint); }
+.saga-status-pill[data-state="saving"],
+.saga-status-pill[data-state="reconnecting"] { color: var(--warn); border-color: var(--warn-solid); background: var(--warn-tint); }
+.saga-status-pill:empty { display: none; }
+
+/* Primary action (Publish) reads as the strong, human-initiated step. */
+.saga-btn-primary {
+  background: var(--accent-solid); border-color: var(--accent-solid); color: var(--accent-ink);
+}
+.saga-btn-primary:hover:not(:disabled) { background: var(--accent-bright); border-color: var(--accent-bright); }
+
+/* Static-mode banner: drafting works, but saving/publishing need `saga serve`. */
+.saga-banner {
+  background: var(--accent-tint); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  color: var(--text-dim); border-radius: var(--radius); padding: 10px 14px; margin: 8px 0;
+  font-size: var(--fs-sm); line-height: 1.5;
+}
+.saga-banner[hidden] { display: none; }
+.saga-banner code {
+  background: var(--surface-2); padding: 1px 5px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text);
+}
+
+/* Transient success flash (publish/read outcomes), sibling to the error panel. */
+.saga-flash {
+  background: var(--ok-tint); border: 1px solid var(--ok-solid); border-left: 4px solid var(--ok);
+  color: var(--ok); border-radius: var(--radius); padding: 12px 16px; margin: 14px 0;
+  font-size: var(--fs-base); white-space: pre-wrap;
+}
 
 .saga-cmt-input {
   display: block; width: 100%; box-sizing: border-box; resize: vertical;

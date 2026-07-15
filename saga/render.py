@@ -131,6 +131,7 @@ def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
             _vendored("diff2html-ui.min.js"),
             _vendored("marked.min.js"),
             f"window.__sagaData = {_json_for_script(payload)};",
+            _asset("saga-merge.js"),
             _asset("saga.js"),
         ]
     )
