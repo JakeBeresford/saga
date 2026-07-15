@@ -243,8 +243,21 @@ def serve(
 ) -> None:
     """Serve *file_path* in the foreground until ``Ctrl-C`` (clean shutdown)."""
     server, actual_port, _ = make_server(file_path, port=port)
+    file_path = Path(file_path)
     url = f"http://127.0.0.1:{actual_port}/"
-    print(f"serving at {url} — Ctrl-C to stop", file=sys.stderr)
+    # Tell the reviewer what the server is for and how to act on comments, so
+    # the running process isn't just an opaque URL.
+    print(
+        f"Serving {file_path} at {url}\n"
+        "\n"
+        "Comments you leave in the page autosave into the file. Then, from a\n"
+        "terminal, act on them:\n"
+        f"  saga comments push {file_path}   # publish a pending review to GitHub\n"
+        f"  saga comments read {file_path}   # print them as JSON for a coding agent\n"
+        "\n"
+        "Ctrl-C to stop.",
+        file=sys.stderr,
+    )
     if open_browser:
         webbrowser.open(url)
     try:
