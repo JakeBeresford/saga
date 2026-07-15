@@ -164,8 +164,8 @@ cp -R "$(pwd)/skills" ~/.claude/skills/saga
 The saga page is also a lightweight review surface. Leave three kinds of comments —
 **inline** (click a line's number in any chapter's diff), **per-file** (the "💬 File
 comment" control in each file header), and one **overall** review comment (the box on the
-**Review** page — reach it with the "Review" button in the header, or by advancing past
-the final chapter).
+**Wrap up** page — reach it with the "Wrap up →" button in any chapter's nav or the card at
+the end of the chapters list).
 
 Comments live **inside the HTML file**, in an embedded block that `saga serve` rewrites
 in place. That keeps the file a single portable artifact: you can commit it, email it, or

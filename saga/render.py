@@ -161,8 +161,6 @@ try {{
 <div class="header">
   <button id="saga-theme" class="saga-theme-toggle" type="button"
           aria-label="Toggle light or dark theme" title="Toggle theme"></button>
-  <button id="saga-review-btn" class="saga-review-toggle" type="button"
-          title="Go to the review page">Review</button>
   <nav class="saga-crumbs">
     <span class="mono">{saga.base}...{saga.branch}</span>
   </nav>

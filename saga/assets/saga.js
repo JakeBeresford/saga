@@ -563,8 +563,6 @@
     // A merge may have pulled in a newer buffer than the file — persist it.
     saveBuffer();
     initTheme();
-    const reviewBtn = $('saga-review-btn');
-    if (reviewBtn) reviewBtn.addEventListener('click', openReview);
     renderHead();
     renderVerdict(data.verdict, data.stats);
     renderTOC();
@@ -657,14 +655,21 @@
         '<div class="saga-badges">' + badges(ch, rd.has(ch.id)) + '</div>' +
         '</button>';
     });
+    html +=
+      '<button class="saga-toc-item saga-wrapup-item" id="saga-wrapup-item">' +
+      '<div class="saga-toc-head"><span class="saga-num">✓</span>' +
+      '<span class="saga-toc-titletext">Wrap up →</span></div>' +
+      '<div class="saga-toc-summary">Leave an overall comment, then publish or copy for an agent.</div>' +
+      '</button>';
     toc.innerHTML = html;
-    toc.querySelectorAll('.saga-toc-item').forEach((b) => {
+    toc.querySelectorAll('.saga-toc-item[data-i]').forEach((b) => {
       b.addEventListener('click', () => openChapter(parseInt(b.dataset.i, 10)));
     });
+    $('saga-wrapup-item').addEventListener('click', openReview);
   }
 
-  // The review page: overall comment + publish/export controls. Reached from the
-  // header button or by advancing past the final chapter — no longer front-loaded
+  // The wrap-up page: overall comment + publish/export controls. Reached from the
+  // "Wrap up" nav button (any chapter) or the index card — no longer front-loaded
   // on the index. It owns the review element IDs, so it is the only live copy.
   function openReview() {
     $('saga-toc').hidden = true;
@@ -676,14 +681,14 @@
     const nav =
       '<div class="saga-reader-nav saga-nav-top">' +
       '<button class="saga-btn saga-toc-link">☰ Contents</button>' +
-      '<span class="saga-progress">Review</span>' +
+      '<span class="saga-progress">Wrap up</span>' +
       '<span class="saga-nav-spacer"></span>' +
       '<button class="saga-btn saga-prev"' + (chapters.length ? '' : ' disabled') + '>← Prev</button>' +
       '</div>';
     view.innerHTML =
       nav +
       '<div class="saga-review">' +
-      '<h2 class="saga-toc-title">Review</h2>' +
+      '<h2 class="saga-toc-title">Wrap up</h2>' +
       '<div id="saga-static-banner" class="saga-banner" hidden>' + bannerText + '</div>' +
       '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
       '<div class="saga-review-actions">' +
@@ -740,7 +745,8 @@
       '<span class="saga-progress">Chapter ' + (i + 1) + ' of ' + chapters.length + '</span>' +
       '<span class="saga-nav-spacer"></span>' +
       '<button class="saga-btn saga-prev"' + (i === 0 ? ' disabled' : '') + '>← Prev</button>' +
-      '<button class="saga-btn saga-next">' + (isLast ? 'Review →' : 'Next →') + '</button>' +
+      (isLast ? '' : '<button class="saga-btn saga-next">Next →</button>') +
+      '<button class="saga-btn saga-wrapup">Wrap up →</button>' +
       '</div>';
 
     reader.innerHTML =
@@ -760,8 +766,8 @@
 
     reader.querySelectorAll('.saga-toc-link').forEach((b) => b.addEventListener('click', renderTOC));
     reader.querySelectorAll('.saga-prev').forEach((b) => b.addEventListener('click', () => openChapter(i - 1)));
-    reader.querySelectorAll('.saga-next').forEach((b) =>
-      b.addEventListener('click', () => (isLast ? openReview() : openChapter(i + 1))));
+    reader.querySelectorAll('.saga-next').forEach((b) => b.addEventListener('click', () => openChapter(i + 1)));
+    reader.querySelectorAll('.saga-wrapup').forEach((b) => b.addEventListener('click', openReview));
     $('saga-read-cb').addEventListener('change', (e) => setRead(ch.id, e.target.checked));
 
     renderChapterDiff(ch);
