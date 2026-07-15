@@ -135,6 +135,27 @@ def test_render_escapes_angle_brackets_in_payload(
     assert "\\u003c/script>" in html
 
 
+def test_render_embeds_empty_comments_block_with_saga_id(git_repo: Path, stub_vendored):
+    """A freshly rendered saga carries the sentinels and a valid empty envelope
+    with a fresh sagaId — the in-file comment store, readable offline."""
+    from saga import block
+
+    html = render_mod.render(_saga_for(), _feature_diff(git_repo))
+    assert block.START in html and block.END in html
+    env = block.extract_envelope(html)
+    assert env["schema"] == 1
+    assert env["overall"] is None and env["file"] == [] and env["inline"] == []
+    assert len(env["sagaId"]) == 16  # secrets.token_hex(8)
+
+
+def test_render_mints_a_distinct_saga_id_each_time(git_repo: Path, stub_vendored):
+    from saga import block
+
+    a = block.extract_envelope(render_mod.render(_saga_for(), _feature_diff(git_repo)))
+    b = block.extract_envelope(render_mod.render(_saga_for(), _feature_diff(git_repo)))
+    assert a["sagaId"] != b["sagaId"]
+
+
 def test_json_for_script_escapes_all_left_angle_brackets():
     out = render_mod._json_for_script({"k": "a<b<c"})
     assert "<" not in out
