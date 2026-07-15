@@ -351,8 +351,10 @@
     return anchor || {line: 1, side: 'RIGHT'};
   }
 
-  // Render the comment thread + composer for one line into its cell.
-  function renderThread(td, path, line, side, row) {
+  // Render the comment thread for one line into its cell. The composer is only
+  // shown when showComposer is true, so a line with saved comments displays them
+  // on their own — clicking the line number again reveals the composer to add more.
+  function renderThread(td, path, line, side, row, showComposer) {
     td.innerHTML = '';
     liveInline(path, line, side).forEach((c) => {
       const item = document.createElement('div');
@@ -366,12 +368,14 @@
       del.title = 'Delete comment';
       del.addEventListener('click', () => {
         deleteRecord(c);
-        renderThread(td, path, line, side, row);
+        if (!liveInline(path, line, side).length) row.remove();
+        else renderThread(td, path, line, side, row, false);
       });
       item.appendChild(body);
       item.appendChild(del);
       td.appendChild(item);
     });
+    if (!showComposer) return null;
     const composer = document.createElement('div');
     composer.className = 'saga-cmt-composer';
     const ta = document.createElement('textarea');
@@ -384,19 +388,20 @@
       const v = ta.value.trim();
       if (!v) return;
       addInline(path, line, side, v);
-      renderThread(td, path, line, side, row);
+      renderThread(td, path, line, side, row, false);
     });
     const cancel = document.createElement('button');
     cancel.className = 'saga-btn saga-cmt-cancel';
     cancel.textContent = 'Cancel';
     cancel.addEventListener('click', () => {
       if (!liveInline(path, line, side).length) row.remove();
-      else ta.value = '';
+      else renderThread(td, path, line, side, row, false);
     });
     composer.appendChild(ta);
     composer.appendChild(save);
     composer.appendChild(cancel);
     td.appendChild(composer);
+    ta.focus();
     return ta;
   }
 
@@ -404,8 +409,9 @@
     const next = tr.nextSibling;
     if (next && next.classList && next.classList.contains('saga-cmt-row') &&
         next.dataset.line === String(line) && next.dataset.side === side) {
-      const ta = next.querySelector('.saga-cmt-input');
-      if (ta) ta.focus();
+      // Row already exists (from a prior comment or the initial load); reveal the
+      // composer so the reviewer can add another comment on the same line.
+      renderThread(next.querySelector('td'), path, line, side, next, true);
       return;
     }
     const row = document.createElement('tr');
@@ -417,7 +423,10 @@
     td.className = 'saga-cmt-cell';
     row.appendChild(td);
     tr.parentNode.insertBefore(row, tr.nextSibling);
-    renderThread(td, path, line, side, row);
+    // A brand-new row with existing saved comments comes from the initial load
+    // pass; show those comments without a composer. A click on a bare line opens
+    // the composer to write the first comment.
+    renderThread(td, path, line, side, row, !liveInline(path, line, side).length);
   }
 
   // Per-file comment control injected into a diff2html file header. The panel
