@@ -255,7 +255,7 @@ def serve(
         "Comments you leave in the page autosave into the file. Then, from a\n"
         "terminal, act on them:\n"
         f"  saga comments push{printed_path}   # publish a pending review to GitHub\n"
-        f"  saga comments read{printed_path}   # print them as JSON for a coding agent\n"
+        f"  saga comments read{printed_path}   # print as JSON for a coding agent\n"
         "\n"
         "Ctrl-C to stop.",
         file=sys.stderr,
