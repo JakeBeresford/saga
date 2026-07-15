@@ -149,6 +149,35 @@ def test_put_with_wrong_saga_id_is_rejected_409(saga_file):
         assert status == 409
 
 
+def test_put_with_invalid_json_is_rejected_400(saga_file):
+    with _running(saga_file) as (base, port, token):
+        req = urllib.request.Request(
+            f"{base}/api/comments",
+            data=b"{not json",
+            method="PUT",
+            headers={"Host": f"127.0.0.1:{port}", "X-Saga-Token": token},
+        )
+        try:
+            urllib.request.urlopen(req)
+            raise AssertionError("expected 400")
+        except urllib.error.HTTPError as e:
+            assert e.code == 400
+
+
+def test_put_to_a_file_missing_sentinels_is_422(saga_file):
+    with _running(saga_file) as (base, port, token):
+        # Simulate the block being stripped out from under the server.
+        saga_file.write_text("<html>no block anymore</html>")
+        env = block.empty_envelope("a1b2c3d4e5f6a7b8")
+        status, _ = _request(
+            f"{base}/api/comments",
+            method="PUT",
+            body=env,
+            headers={"Host": f"127.0.0.1:{port}", "X-Saga-Token": token},
+        )
+        assert status == 422
+
+
 def test_put_updates_the_file_and_reopen_sees_it(saga_file):
     with _running(saga_file) as (base, port, token):
         env = block.read_envelope(saga_file)
