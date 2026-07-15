@@ -13,6 +13,17 @@
 }
 .saga-theme-toggle:hover { border-color: var(--accent); color: var(--text); }
 
+/* jump to the review page from anywhere, pinned left of the theme toggle */
+.saga-review-toggle {
+  position: absolute; top: 16px; right: 76px;
+  display: inline-flex; align-items: center; height: 32px; padding: 0 12px;
+  font-size: var(--fs-sm); line-height: 1; cursor: pointer;
+  color: var(--text-dim); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  transition: border-color var(--transition), color var(--transition);
+}
+.saga-review-toggle:hover { border-color: var(--accent); color: var(--text); }
+
 .saga-crumbs { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 8px; }
 .saga-crumbs a { color: var(--accent); text-decoration: none; }
 .saga-crumbs a:hover { color: var(--accent-bright); text-decoration: underline; }

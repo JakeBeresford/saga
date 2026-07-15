@@ -563,6 +563,8 @@
     // A merge may have pulled in a newer buffer than the file — persist it.
     saveBuffer();
     initTheme();
+    const reviewBtn = $('saga-review-btn');
+    if (reviewBtn) reviewBtn.addEventListener('click', openReview);
     renderHead();
     renderVerdict(data.verdict, data.stats);
     renderTOC();
@@ -642,23 +644,10 @@
   function renderTOC() {
     const toc = $('saga-toc');
     $('saga-reader').hidden = true;
+    $('saga-review-view').hidden = true;
     toc.hidden = false;
     const rd = readSet();
-    const bannerText = 'Drafting in this browser only — open with ' +
-      '<code>saga serve ./saga.html</code> to save into the file and publish to GitHub.';
-    let html =
-      '<div class="saga-review">' +
-      '<h2 class="saga-toc-title">Review</h2>' +
-      '<div id="saga-static-banner" class="saga-banner" hidden>' + bannerText + '</div>' +
-      '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
-      '<div class="saga-review-actions">' +
-      '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
-      '<span class="saga-status-pill" id="saga-status"></span>' +
-      '<button class="saga-btn" id="saga-export" data-label="Copy for agent" hidden>Copy for agent</button>' +
-      '<button class="saga-btn saga-btn-primary" id="saga-publish" hidden>Publish to GitHub</button>' +
-      '</div>' +
-      '</div>' +
-      '<h2 class="saga-toc-title">Chapters</h2>';
+    let html = '<h2 class="saga-toc-title">Chapters</h2>';
     chapters.forEach((ch, i) => {
       html +=
         '<button class="saga-toc-item" data-i="' + i + '">' +
@@ -672,6 +661,41 @@
     toc.querySelectorAll('.saga-toc-item').forEach((b) => {
       b.addEventListener('click', () => openChapter(parseInt(b.dataset.i, 10)));
     });
+  }
+
+  // The review page: overall comment + publish/export controls. Reached from the
+  // header button or by advancing past the final chapter — no longer front-loaded
+  // on the index. It owns the review element IDs, so it is the only live copy.
+  function openReview() {
+    $('saga-toc').hidden = true;
+    $('saga-reader').hidden = true;
+    const view = $('saga-review-view');
+    view.hidden = false;
+    const bannerText = 'Drafting in this browser only — open with ' +
+      '<code>saga serve ./saga.html</code> to save into the file and publish to GitHub.';
+    const nav =
+      '<div class="saga-reader-nav saga-nav-top">' +
+      '<button class="saga-btn saga-toc-link">☰ Contents</button>' +
+      '<span class="saga-progress">Review</span>' +
+      '<span class="saga-nav-spacer"></span>' +
+      '<button class="saga-btn saga-prev"' + (chapters.length ? '' : ' disabled') + '>← Prev</button>' +
+      '</div>';
+    view.innerHTML =
+      nav +
+      '<div class="saga-review">' +
+      '<h2 class="saga-toc-title">Review</h2>' +
+      '<div id="saga-static-banner" class="saga-banner" hidden>' + bannerText + '</div>' +
+      '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
+      '<div class="saga-review-actions">' +
+      '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
+      '<span class="saga-status-pill" id="saga-status"></span>' +
+      '<button class="saga-btn" id="saga-export" data-label="Copy for agent" hidden>Copy for agent</button>' +
+      '<button class="saga-btn saga-btn-primary" id="saga-publish" hidden>Publish to GitHub</button>' +
+      '</div>' +
+      '</div>';
+    view.querySelectorAll('.saga-toc-link').forEach((b) => b.addEventListener('click', renderTOC));
+    view.querySelectorAll('.saga-prev').forEach((b) =>
+      b.addEventListener('click', () => openChapter(chapters.length - 1)));
     const overall = $('saga-overall');
     if (overall) {
       const o = liveOverall();
@@ -684,6 +708,7 @@
     if (exportBtn) exportBtn.addEventListener('click', () => exportForAgent(exportBtn));
     updateCount();
     applyMode();
+    window.scrollTo(0, 0);
   }
 
   // --- chapter reader ------------------------------------------------
@@ -692,7 +717,9 @@
     current = i;
     const ch = chapters[i];
     if (!ch) return;
+    const isLast = i === chapters.length - 1;
     $('saga-toc').hidden = true;
+    $('saga-review-view').hidden = true;
     const reader = $('saga-reader');
     reader.hidden = false;
 
@@ -713,7 +740,7 @@
       '<span class="saga-progress">Chapter ' + (i + 1) + ' of ' + chapters.length + '</span>' +
       '<span class="saga-nav-spacer"></span>' +
       '<button class="saga-btn saga-prev"' + (i === 0 ? ' disabled' : '') + '>← Prev</button>' +
-      '<button class="saga-btn saga-next"' + (i === chapters.length - 1 ? ' disabled' : '') + '>Next →</button>' +
+      '<button class="saga-btn saga-next">' + (isLast ? 'Review →' : 'Next →') + '</button>' +
       '</div>';
 
     reader.innerHTML =
@@ -733,7 +760,8 @@
 
     reader.querySelectorAll('.saga-toc-link').forEach((b) => b.addEventListener('click', renderTOC));
     reader.querySelectorAll('.saga-prev').forEach((b) => b.addEventListener('click', () => openChapter(i - 1)));
-    reader.querySelectorAll('.saga-next').forEach((b) => b.addEventListener('click', () => openChapter(i + 1)));
+    reader.querySelectorAll('.saga-next').forEach((b) =>
+      b.addEventListener('click', () => (isLast ? openReview() : openChapter(i + 1))));
     $('saga-read-cb').addEventListener('change', (e) => setRead(ch.id, e.target.checked));
 
     renderChapterDiff(ch);

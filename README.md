@@ -76,16 +76,16 @@ defines the change set, so `--base`, `--head`, and `--repo` are ignored.
 The optional positional argument is a GitHub PR URL (as above); all flags below
 apply to both modes.
 
-| Flag                   | Default                     | Meaning                                                                                            |
-| ---------------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--base`               | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`); local mode only |
-| `--head`               | current branch              | Head ref to walk through; local mode only                                                          |
-| `--intent PATH`        | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging |
-| `--model`              | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                          |
-| `-o, --output`         | `saga.html`                 | Output file                                                                                        |
-| `--repo`               | cwd                         | A path inside the target git repo; local mode only                                                |
-| `--open` / `--no-open` | on                          | Open the result in a browser (the served URL when serving, else the `file://` page)                |
-| `--serve` / `--no-serve` | on                        | On an interactive terminal, serve the saga after generating so comments save into the file (see [Reviewing](#reviewing-comments)); `--no-serve` writes and exits |
+| Flag                     | Default                     | Meaning                                                                                                                                                          |
+| ------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base`                 | auto-detected               | Base ref to diff against (defaults to the repo's default branch, e.g. `origin/main`); local mode only                                                            |
+| `--head`                 | current branch              | Head ref to walk through; local mode only                                                                                                                        |
+| `--intent PATH`          | —                           | Optional plan/spec describing the change's intent, for plan-aware narration and deviation flagging                                                               |
+| `--model`                | `anthropic/claude-opus-4-8` | `provider/model` string (see [Providers](#providers)); also `$SAGA_MODEL`                                                                                        |
+| `-o, --output`           | `saga.html`                 | Output file                                                                                                                                                      |
+| `--repo`                 | cwd                         | A path inside the target git repo; local mode only                                                                                                               |
+| `--open` / `--no-open`   | on                          | Open the result in a browser (the served URL when serving, else the `file://` page)                                                                              |
+| `--serve` / `--no-serve` | on                          | On an interactive terminal, serve the saga after generating so comments save into the file (see [Reviewing](#reviewing-comments)); `--no-serve` writes and exits |
 
 ## Providers
 
@@ -93,12 +93,12 @@ The model is a single `provider/model` string, dispatched through `instructor`.
 Choose it with `--model` or the `SAGA_MODEL` environment variable, and set
 the matching API key:
 
-| Provider   | `--model` example                        | API key env var      |
-| ---------- | ---------------------------------------- | -------------------- |
-| Anthropic  | `anthropic/claude-opus-4-8`              | `ANTHROPIC_API_KEY`  |
-| OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`     |
-| OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY` |
-| Local      | `local/qwen2.5-coder:14b`                | none                 |
+| Provider   | `--model` example                        | API key env var          |
+| ---------- | ---------------------------------------- | ------------------------ |
+| Anthropic  | `anthropic/claude-opus-4-8`              | `ANTHROPIC_API_KEY`      |
+| OpenAI     | `openai/gpt-4o`                          | `OPENAI_API_KEY`         |
+| OpenRouter | `openrouter/anthropic/claude-3.5-sonnet` | `OPENROUTER_API_KEY`     |
+| Local      | `local/qwen2.5-coder:14b`                | none                     |
 | Claude CLI | `claude-cli` or `claude-cli/sonnet`      | none (Claude Code login) |
 
 ```sh
@@ -163,8 +163,9 @@ cp -R "$(pwd)/skills" ~/.claude/skills/saga
 
 The saga page is also a lightweight review surface. Leave three kinds of comments —
 **inline** (click a line's number in any chapter's diff), **per-file** (the "💬 File
-comment" control in each file header), and one **overall** review comment (the box at
-the top of the Chapters list).
+comment" control in each file header), and one **overall** review comment (the box on the
+**Review** page — reach it with the "Review" button in the header, or by advancing past
+the final chapter).
 
 Comments live **inside the HTML file**, in an embedded block that `saga serve` rewrites
 in place. That keeps the file a single portable artifact: you can commit it, email it, or
@@ -215,10 +216,10 @@ The same publish/read paths are available as commands that read the file's embed
 
 ```sh
 # Post the comments as a single PENDING review (you submit it on GitHub).
-saga comments push ./saga.html
+saga comments push path/to/saga.html
 
 # Emit the comments as JSON on stdout for a coding agent to act on.
-saga comments read ./saga.html
+saga comments read path/to/saga.html
 ```
 
 Both default to `./saga.html`.

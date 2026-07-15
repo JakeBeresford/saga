@@ -161,6 +161,8 @@ try {{
 <div class="header">
   <button id="saga-theme" class="saga-theme-toggle" type="button"
           aria-label="Toggle light or dark theme" title="Toggle theme"></button>
+  <button id="saga-review-btn" class="saga-review-toggle" type="button"
+          title="Go to the review page">Review</button>
   <nav class="saga-crumbs">
     <span class="mono">{saga.base}...{saga.branch}</span>
   </nav>
@@ -174,6 +176,7 @@ try {{
 <div id="saga-notice"></div>
 <div id="saga-toc" class="saga-toc"></div>
 <div id="saga-reader" class="saga-reader" hidden></div>
+<div id="saga-review-view" class="saga-reader" hidden></div>
 {comments_block_html}
 <script>
 {scripts}
