@@ -22,6 +22,7 @@ Pass --intent PATH to give the model a plan/spec for richer, plan-aware narratio
 from __future__ import annotations
 
 import os
+import sys
 import webbrowser
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -52,6 +53,11 @@ _EDITOR_SCHEMES = {
     "cursor": "cursor",
     "windsurf": "windsurf",
 }
+
+
+def _interactive() -> bool:
+    """Whether we're attached to an interactive terminal (drives auto-serve)."""
+    return sys.stdout.isatty()
 
 
 def _editor_scheme() -> str:
@@ -176,6 +182,15 @@ def main(
         "--open/--no-open",
         help="open the result in a browser (default: on; use --no-open to disable)",
     ),
+    serve: bool = typer.Option(
+        True,
+        "--serve/--no-serve",
+        help=(
+            "after generating, serve the saga locally so comments persist into "
+            "the file and can be published (interactive terminals only); "
+            "--no-serve writes and exits"
+        ),
+    ),
 ) -> None:
     """Generate a self-contained PR saga as static HTML."""
     if ctx.invoked_subcommand is not None:
@@ -236,7 +251,14 @@ def main(
 
     output.write_text(html)
     typer.echo(f"Wrote {output} ({len(saga.chapters)} chapters).", err=True)
-    if open_browser:
+
+    # Interactive runs serve the file so comments autosave into it and can be
+    # published — serve is the front door (a bare file:// page can neither save
+    # nor publish). Non-interactive runs (CI, PR-URL batch) or --no-serve just
+    # write the file, optionally opening it as a static page.
+    if serve and _interactive():
+        serve_saga(output, open_browser=open_browser)
+    elif open_browser:
         webbrowser.open(output.resolve().as_uri())
 
 
