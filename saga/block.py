@@ -56,6 +56,32 @@ class SentinelsMissing(BlockError):
     """The file has no ``SAGA:COMMENTS`` sentinels — it is not a servable saga."""
 
 
+def validate_envelope(data: object) -> dict:
+    """Light shape check for an envelope, whatever its source (PUT body or a
+    hand-written sidecar). Raises ``BlockError`` on an obviously malformed shape.
+
+    Deliberately lenient: it guards the fields the GitHub-push mapper needs
+    (``path``/``line`` on inline, ``path`` on file notes) without demanding the
+    bookkeeping fields (``id``/``updatedAt``/``deletedAt``) a hand author would
+    not write.
+    """
+    if not isinstance(data, dict):
+        raise BlockError("envelope must be a JSON object.")
+    for key in ("file", "inline"):
+        items = data.get(key, [])
+        if not isinstance(items, list):
+            raise BlockError(f"'{key}' must be a list.")
+        for c in items:
+            if not isinstance(c, dict) or "path" not in c or "body" not in c:
+                raise BlockError(f"each {key} comment needs a 'path' and a 'body'.")
+            if key == "inline" and "line" not in c:
+                raise BlockError("each inline comment needs a 'line'.")
+    overall = data.get("overall")
+    if overall is not None and (not isinstance(overall, dict) or "body" not in overall):
+        raise BlockError("'overall' must be null or an object with a 'body'.")
+    return data
+
+
 def empty_envelope(saga_id: str) -> dict:
     """A fresh, comment-free envelope for a newly generated saga."""
     return {
