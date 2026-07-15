@@ -15,6 +15,7 @@ The output is one HTML file with everything inlined (diff2html, syntax highlight
 the data). Open it offline, email it, commit it, or drop it on any static host.
 
 [**See an example saga**](example.html){: .btn .btn-primary }
+[Read the announcement](https://jakeberesford.com/blog/saga){: .btn }
 
 ## Quickstart
 

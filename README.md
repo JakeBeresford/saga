@@ -1,4 +1,16 @@
-# Saga
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/saga-wordmark-dark.svg">
+    <img alt="Saga" src="docs/assets/saga-wordmark-light.svg" width="200">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/saga-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/saga-cli?style=flat-square&color=0e7490"></a>
+  <a href="https://pypi.org/project/saga-cli/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/saga-cli?style=flat-square&color=0e7490"></a>
+  <a href="https://github.com/JakeBeresford/saga/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/JakeBeresford/saga/ci.yml?style=flat-square&label=CI"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0e7490?style=flat-square"></a>
+</p>
 
 Generate a **chapter-by-chapter guided tour** of a code change as a single,
 self-contained static HTML page, a _saga_ of your diff. It partitions a diff into
@@ -9,7 +21,7 @@ losing the thread.
 The output is one HTML file with everything inlined (diff2html, syntax highlighting,
 the data). Open it offline, email it, commit it, or drop it on any static host.
 
-[**See an example saga**](https://jakeberesford.github.io/saga/example.html).
+[**See an example saga**](https://jakeberesford.github.io/saga/example.html) · [**Read the announcement**](https://jakeberesford.com/blog/saga) · [**Docs**](https://jakeberesford.github.io/saga/)
 
 ## Quickstart
 

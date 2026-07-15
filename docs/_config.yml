@@ -4,6 +4,9 @@ remote_theme: just-the-docs/just-the-docs
 url: https://jakeberesford.github.io
 baseurl: /saga
 
+color_scheme: saga
+logo: "/assets/saga-wordmark-light.svg"
+
 plugins:
   - jekyll-remote-theme
 
@@ -12,4 +15,5 @@ exclude:
   - plans
 
 aux_links:
+  Blog post: https://jakeberesford.com/blog/saga
   GitHub: https://github.com/JakeBeresford/saga
