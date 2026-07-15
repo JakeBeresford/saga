@@ -1,0 +1,15 @@
+title: Saga
+description: Generate a chapter-by-chapter guided tour of a code change as a single, self-contained static HTML page.
+remote_theme: just-the-docs/just-the-docs
+url: https://jakeberesford.github.io
+baseurl: /saga
+
+plugins:
+  - jekyll-remote-theme
+
+# Plans and the generated example page are not documentation pages.
+exclude:
+  - plans
+
+aux_links:
+  GitHub: https://github.com/JakeBeresford/saga
