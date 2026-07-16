@@ -17,9 +17,15 @@ Saga turns that diff into a **chapter-by-chapter guided tour** — the whole cha
 
 The output is one HTML file with everything inlined (diff2html, syntax highlighting, the data). Open it offline, email it, commit it, or drop it on any static host.
 
-[**See an example saga**](https://jakeberesford.github.io/saga/example.html)
-[**Docs**](https://jakeberesford.github.io/saga/)
-[**Read the announcement**](https://jakeberesford.com/blog/saga)
+<p align="center">
+  <a href="https://jakeberesford.github.io/saga/example.html">
+    <img alt="Walking through an example saga chapter by chapter" src="docs/assets/demo.gif" width="720">
+  </a>
+  <br>
+  <sub><a href="https://jakeberesford.github.io/saga/example.html"><b>▶ Explore the interactive example →</b></a></sub>
+</p>
+
+New here? I wrote about why reviewing — not writing — is the job now, and how saga tackles it: [**the story behind saga →**](https://jakeberesford.com/blog/saga)
 
 ## Quickstart
 
