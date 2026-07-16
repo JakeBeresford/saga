@@ -13,7 +13,7 @@ uv sync --group dev   # install the package plus the dev/test tools
 Validate your changes with the same checks CI runs:
 
 ```sh
-scripts/check.sh   # lint + type-check + test — the full gate
+scripts/check.sh   # lint + type-check + test (full CI parity)
 scripts/lint.sh    # ruff check, ruff format --check, and ty type-check
 scripts/test.sh    # pytest
 ```
@@ -33,10 +33,8 @@ saga --base main --head my-feature
 ## Pull requests
 
 - Keep changes focused and match the existing style.
-- Add or update tests for any behavior change — the core model logic in
-  `saga/model.py` is unit-tested in `tests/test_model.py`.
-- Make sure `scripts/check.sh` passes before opening a PR. CI runs the same
-  checks: the test suite on Python 3.11–3.13 plus a lint/format/type-check job.
+- Add or update tests for any behavior change. the core model logic in `saga/model.py` is unit-tested in `tests/test_model.py`.
+- Make sure `scripts/check.sh` passes before opening a PR. CI runs the same checks: the test suite on Python 3.11–3.13 plus a lint/format/type-check job.
 
 ## Reporting issues
 
