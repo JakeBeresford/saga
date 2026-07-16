@@ -1,0 +1,21 @@
+// Saga "instrument ink" scheme for just-the-docs.
+// Cool cyan accent = "a human can act here"; graphite ink on cool near-white.
+// Mirrors saga/assets/tokens.css so the docs match the tool's output.
+
+$link-color: #0e7490; // --accent
+$btn-primary-color: #1592b5; // --accent-solid
+$nav-child-link-color: #55606f; // --text-dim
+
+$body-text-color: #1a1f28; // --text
+$body-heading-color: #141922;
+$sidebar-color: #f4f6f9; // --bg
+$search-background-color: #ffffff; // --surface
+$table-background-color: #ffffff;
+$code-background-color: #eef1f5; // --surface-2
+$feedback-color: darken($sidebar-color, 3%);
+
+$border-color: #d5dbe3; // --line
+
+// Cyan-tinted "current page" highlight in the nav.
+$nav-list-link-color: #1a1f28;
+$nav-list-item-height: 2rem;
