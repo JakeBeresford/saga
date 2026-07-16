@@ -9,16 +9,13 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0e7490?style=flat-square"></a>
 </p>
 
-Generate a **chapter-by-chapter guided tour** of a code change as a single,
-self-contained static HTML page, a _saga_ of your diff. It partitions a diff into
-ordered chapters that tell one coherent story, each with a plain-language narration
-and just the hunks that belong to it. Large PRs become easy to review without
-losing the thread.
+Generate a **chapter-by-chapter guided tour** of a code change as a single, self-contained static HTML page, a _saga_ of your diff. It partitions a diff into ordered chapters that tell one coherent story, each with a plain-language narration and just the hunks that belong to it. Large PRs become easy to review without losing the thread.
 
-The output is one HTML file with everything inlined (diff2html, syntax highlighting,
-the data). Open it offline, email it, commit it, or drop it on any static host.
+The output is one HTML file with everything inlined (diff2html, syntax highlighting, the data). Open it offline, email it, commit it, or drop it on any static host.
 
-[**See an example saga**](https://jakeberesford.github.io/saga/example.html) · [**Read the announcement**](https://jakeberesford.com/blog/saga) · [**Docs**](https://jakeberesford.github.io/saga/)
+[**See an example saga**](https://jakeberesford.github.io/saga/example.html)
+[**Docs**](https://jakeberesford.github.io/saga/)
+[**Read the announcement**](https://jakeberesford.com/blog/saga)
 
 ## Quickstart
 
@@ -50,4 +47,4 @@ Full docs live at **<https://jakeberesford.github.io/saga/>**:
 - [Reviewing](https://jakeberesford.github.io/saga/reviewing.html) — leaving comments on a saga and publishing them to GitHub.
 - [How it works](https://jakeberesford.github.io/saga/how-it-works.html) — the pipeline, end to end.
 
-Contributing? See [AGENTS.md](AGENTS.md) for the validation gate and architecture.
+Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md)
