@@ -1,6 +1,8 @@
 <p align="center">
-  <img alt="Saga" src="docs/assets/logo.png" width="140">
+  <img alt="" src="docs/assets/logo.png" width="140">
 </p>
+
+<h1 align="center">Saga</h1>
 
 <p align="center">
   <a href="https://pypi.org/project/saga-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/saga-cli?style=flat-square&color=0e7490"></a>
@@ -9,7 +11,9 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0e7490?style=flat-square"></a>
 </p>
 
-Generate a **chapter-by-chapter guided tour** of a code change as a single, self-contained static HTML page, a _saga_ of your diff. It partitions a diff into ordered chapters that tell one coherent story, each with a plain-language narration and just the hunks that belong to it. Large PRs become easy to review without losing the thread.
+AI writes most of our code now, and the pull requests it opens keep getting larger, denser, and more frequent. Writing is no longer the bottleneck — reviewing is. And a two-thousand-line diff across forty files doesn't fit in anyone's head; scrolling it top-to-bottom is how real bugs get waved through.
+
+Saga turns that diff into a **chapter-by-chapter guided tour** — the whole change partitioned into an ordered story, each chapter narrated in plain language with just the hunks that belong to it. You review with judgment instead of drowning. Point it at a branch or a PR and you have one in seconds.
 
 The output is one HTML file with everything inlined (diff2html, syntax highlighting, the data). Open it offline, email it, commit it, or drop it on any static host.
 
