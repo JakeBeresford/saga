@@ -11,9 +11,9 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0e7490?style=flat-square"></a>
 </p>
 
-AI writes most of our code now, and the pull requests it opens keep getting larger, denser, and more frequent. Writing is no longer the bottleneck — reviewing is. And a two-thousand-line diff across forty files doesn't fit in anyone's head; scrolling it top-to-bottom is how real bugs get waved through.
+AI writes most of our code now, and the pull requests it opens keep getting larger, denser, and more frequent. Writing is no longer the bottleneck, reviewing is. And a two-thousand-line diff across forty files doesn't fit in anyone's head; scrolling it top-to-bottom is how real bugs get waved through.
 
-Saga turns that diff into a **chapter-by-chapter guided tour** — the whole change partitioned into an ordered story, each chapter narrated in plain language with just the hunks that belong to it. You review with judgment instead of drowning. Point it at a branch or a PR and you have one in seconds.
+Saga turns that diff into a **chapter-by-chapter guided tour**. The whole change partitioned into an ordered story, each chapter narrated in plain language with just the hunks that belong to it. You review with judgment instead of drowning. Point it at a branch or a PR and you have one in seconds.
 
 The output is one HTML file with everything inlined (diff2html, syntax highlighting, the data). Open it offline, email it, commit it, or drop it on any static host.
 
@@ -25,7 +25,7 @@ The output is one HTML file with everything inlined (diff2html, syntax highlight
   <sub><a href="https://jakeberesford.github.io/saga/example.html"><b>▶ Explore the interactive example →</b></a></sub>
 </p>
 
-New here? I wrote about why reviewing — not writing — is the job now, and how saga tackles it: [**the story behind saga →**](https://jakeberesford.com/blog/saga)
+New here? I wrote about why reviewing (not writing) is the job now, and how saga tackles it: [**the story behind saga →**](https://jakeberesford.com/blog/saga)
 
 ## Quickstart
 
@@ -51,10 +51,10 @@ Using saga regularly? Install it once so the command is just `saga`:
 
 Full docs live at **<https://jakeberesford.github.io/saga/>**:
 
-- [Installation](https://jakeberesford.github.io/saga/installation.html) — requirements and how to install.
-- [Usage](https://jakeberesford.github.io/saga/usage.html) — running on a branch or a PR, and every flag.
-- [Providers](https://jakeberesford.github.io/saga/providers.html) — Anthropic, OpenAI, OpenRouter, local LLMs, and the Claude Code CLI.
-- [Reviewing](https://jakeberesford.github.io/saga/reviewing.html) — leaving comments on a saga and publishing them to GitHub.
-- [How it works](https://jakeberesford.github.io/saga/how-it-works.html) — the pipeline, end to end.
+- [Installation](https://jakeberesford.github.io/saga/installation.html): requirements and how to install.
+- [Usage](https://jakeberesford.github.io/saga/usage.html): running on a branch or a PR, and every flag.
+- [Providers](https://jakeberesford.github.io/saga/providers.html): Anthropic, OpenAI, OpenRouter, local LLMs, and the Claude Code CLI.
+- [Reviewing](https://jakeberesford.github.io/saga/reviewing.html): leaving comments on a saga and publishing them to GitHub, or pulling them into your agent.
+- [How it works](https://jakeberesford.github.io/saga/how-it-works.html): the pipeline, end to end.
 
 Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md)

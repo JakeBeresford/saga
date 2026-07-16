@@ -1,0 +1,36 @@
+// Saga "instrument ink" — dark. Mirrors the dark side of saga/assets/tokens.css:
+// layered graphite surfaces, a brighter cyan accent, status hues for code.
+
+$body-background-color: #0b0e13; // --bg
+$sidebar-color: #0b0e13;
+$search-background-color: #141922; // --surface
+$table-background-color: #141922;
+$code-background-color: #161c26; // between --surface and --surface-2
+$feedback-color: #141922;
+
+$body-text-color: #c9d3df;
+$body-heading-color: #e7ecf3; // --text
+$nav-child-link-color: #9aa7b8; // --text-dim
+$link-color: #57c7e3; // --accent (dark)
+$btn-primary-color: #2b93b3; // --accent-solid (dark)
+$base-button-color: #1d2430; // --surface-2
+$border-color: #2a323f; // --line
+$search-result-preview-color: #9aa7b8;
+
+// Default rouge highlighting is tuned for light backgrounds; retint the common
+// tokens with saga's own status hues so code stays readable on the dark surface.
+.highlight {
+  color: #c9d3df;
+
+  .c, .c1, .cm, .cd, .cs { color: #6b7684; font-style: italic; } // comments
+  .k, .kd, .kn, .kp, .kr, .kt { color: #57c7e3; } // keywords
+  .s, .s1, .s2, .sb, .sc, .sd, .se, .sh, .si, .sx, .dl { color: #4ec98a; } // strings
+  .nb, .bp, .nf, .fm { color: #8ad9ef; } // builtins / functions
+  .nc, .nn { color: #e0a83e; } // classes / namespaces
+  .na, .nt { color: #57c7e3; } // attributes / tags
+  .m, .mi, .mf, .mh, .mo, .il { color: #e0a83e; } // numbers
+  .o, .ow, .p { color: #c9d3df; } // operators / punctuation
+  .nv, .vc, .vg, .vi { color: #f2685f; } // variables
+  .gd { color: #f2685f; } // diff removed
+  .gi { color: #4ec98a; } // diff added
+}
