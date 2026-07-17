@@ -175,7 +175,7 @@ try {{
     <div id="saga-meta" class="saga-meta"></div>
   </div>
 </div>
-<div id="saga-notice"></div>
+<div id="saga-notice" role="status" aria-live="polite"></div>
 <div id="saga-toc" class="saga-toc"></div>
 <div id="saga-reader" class="saga-reader" hidden></div>
 <div id="saga-review-view" class="saga-reader" hidden></div>
