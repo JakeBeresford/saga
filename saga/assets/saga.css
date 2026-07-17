@@ -77,6 +77,10 @@
 .saga-toc { max-width: 1000px; margin: 0 auto; padding: 8px 24px 40px; }
 .saga-toc-title, .saga-chapter-title { color: var(--text); }
 .saga-toc-title { font-size: var(--fs-lg); font-weight: 600; margin: 16px 0 12px; }
+/* These headings take focus only programmatically (tabindex=-1) on a view swap,
+   to move assistive-tech focus into the new content. They are never Tab-reachable,
+   so the focus ring would just be visual noise on load and navigation. */
+.saga-toc-title:focus, .saga-chapter-title:focus { outline: none; }
 
 .saga-toc-item {
   display: block;
