@@ -89,6 +89,18 @@
 
   let sagaId = '';
   let env = {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
+  let dirtyOnLoad = false;    // the merged buffer differs from the file on disk
+
+  // A content signature of an envelope's comments, order-independent, used to
+  // tell whether a merge actually changed anything the file already holds.
+  function envSignature(e) {
+    const rec = (r) => JSON.stringify(
+      [r.id, r.path, r.line, r.side, r.body, r.updatedAt, r.deletedAt]);
+    const arr = (a) => (a || []).map(rec).sort().join('|');
+    const o = e.overall;
+    const overall = o ? JSON.stringify([o.body, o.updatedAt, o.deletedAt]) : 'null';
+    return overall + '#' + arr(e.file) + '#' + arr(e.inline);
+  }
 
   function now() { return Date.now(); }
   function uid() {
@@ -190,6 +202,7 @@
   let token = null;
   let syncTimer = null;
   let reconnectTimer = null;
+  let pendingWrite = false;   // an edit is buffered but not yet confirmed in the file
 
   function setStatus(state) {
     const el = $('saga-status');
@@ -203,20 +216,33 @@
   }
 
   function scheduleSync() {
+    pendingWrite = true;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(sync, 500);
   }
 
-  function sync() {
+  function sync(opts) {
+    clearTimeout(syncTimer);
     setStatus('saving');
     return fetch('/api/comments', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
       body: JSON.stringify(env),
+      // On tab-close we flush with keepalive so the browser completes the
+      // request as the page unloads (sendBeacon can't set the token header).
+      keepalive: !!(opts && opts.keepalive),
     }).then((res) => {
       if (!res.ok) throw new Error('PUT ' + res.status);
+      pendingWrite = false;
       setStatus('saved');
     }).catch(() => { enterBuffering(); });
+  }
+
+  // Flush a debounced edit immediately when the tab is hidden or closing, so a
+  // close inside the 500ms debounce window still reaches the file (the buffer
+  // already holds it; this stops the file from silently lagging).
+  function flushPending() {
+    if (mode === 'served' && pendingWrite) sync({keepalive: true});
   }
 
   // On a failed write, keep buffering to localStorage and poll the session
@@ -229,7 +255,18 @@
         if (!res.ok) throw new Error('session ' + res.status);
         return res.json();
       }).then((s) => {
-        if (s.sagaId !== sagaId) return;
+        if (s.sagaId !== sagaId) {
+          // This origin now serves a different saga (a reused port). Retrying
+          // can never recover our file, so stop polling and fall back to
+          // buffer-only drafts instead of looping forever.
+          clearInterval(reconnectTimer);
+          reconnectTimer = null;
+          mode = 'static';
+          applyMode();
+          notify('This address now serves a different saga; comments are ' +
+                 'saved in this browser only.', true);
+          return;
+        }
         token = s.token;
         clearInterval(reconnectTimer);
         reconnectTimer = null;
@@ -247,8 +284,9 @@
       token = s.token;
       mode = 'served';
       applyMode();
-      // Reconcile the file with the merged (possibly newer) buffer on load.
-      sync();
+      // Reconcile only when the merged buffer is actually newer than the file —
+      // a plain open with no pending draft must not rewrite the file.
+      if (dirtyOnLoad) sync();
     }).catch(() => {
       mode = 'static';
       applyMode();
@@ -560,7 +598,9 @@
       {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
     sagaId = fileState.sagaId || readSlug;
     env = SagaMerge.mergeEnvelope(fileState, loadBuffer(), sagaId);
-    // A merge may have pulled in a newer buffer than the file — persist it.
+    // A merge may have pulled in a newer buffer than the file — persist it, and
+    // remember whether it differs so the on-load reconcile only writes if needed.
+    dirtyOnLoad = envSignature(env) !== envSignature(fileState);
     saveBuffer();
     initTheme();
     renderHead();
@@ -797,6 +837,13 @@
     ui.highlightCode();
     wireComments(container);
   }
+
+  // Flush a pending debounced write before the tab is backgrounded or closed.
+  // visibilitychange is the reliable signal on mobile; pagehide covers close.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPending();
+  });
+  window.addEventListener('pagehide', flushPending);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', show);
