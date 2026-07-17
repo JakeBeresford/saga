@@ -185,16 +185,13 @@
     rec.updatedAt = now();
     onChange();
   }
+  // Add or update the file comment for a path (callers guarantee a non-empty
+  // body; deletion goes through deleteRecord).
   function setFileComment(path, body, anchor) {
     const rec = liveFileComment(path);
-    if (body) {
-      if (rec) { rec.body = body; rec.updatedAt = now(); }
-      else env.file.push({id: uid(), path: path, line: anchor.line, side: anchor.side,
-                          body: body, updatedAt: now(), deletedAt: null});
-    } else if (rec) {
-      rec.deletedAt = now();
-      rec.updatedAt = now();
-    }
+    if (rec) { rec.body = body; rec.updatedAt = now(); }
+    else env.file.push({id: uid(), path: path, line: anchor.line, side: anchor.side,
+                        body: body, updatedAt: now(), deletedAt: null});
     onChange();
   }
   function setOverall(body) {
