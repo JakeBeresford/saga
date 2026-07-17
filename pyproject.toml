@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "saga-cli"
-version = "0.4.0"
+version = "0.5.0"
 description = "Generate a self-contained static HTML saga of a git diff — a chapter-by-chapter guided tour of a change."
 readme = "README.md"
 requires-python = ">=3.11"
