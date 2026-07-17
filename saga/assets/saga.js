@@ -95,8 +95,12 @@
   // writes the buffer synchronously (immediate durability), and — when served —
   // schedules a debounced save into the file.
 
+  function emptyEnv() {
+    return {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
+  }
+
   let sagaId = '';
-  let env = {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
+  let env = emptyEnv();
   let dirtyOnLoad = false;    // the merged buffer differs from the file on disk
 
   // A content signature of an envelope's comments, order-independent, used to
@@ -326,36 +330,40 @@
 
   // --- publish / read (served only) ----------------------------------
 
+  // POST a publish mode and resolve with the parsed JSON, rejecting on a non-OK
+  // response so both callers share one error path.
+  function postPublish(mode) {
+    return fetch('/api/publish', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
+      body: JSON.stringify({mode: mode}),
+    }).then((res) => res.json().then((j) => {
+      if (!res.ok) throw new Error(j.error || 'request failed');
+      return j;
+    }));
+  }
+
   function publishGithub(btn) {
     const label = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Publishing…';
-    fetch('/api/publish', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
-      body: JSON.stringify({mode: 'github'}),
-    }).then((res) => res.json().then((j) => ({ok: res.ok, j}))).then(({ok, j}) => {
-      if (!ok) throw new Error(j.error || 'publish failed');
-      notify(j.summary || 'Created a pending review on GitHub.');
-    }).catch((e) => notify('Publish failed: ' + e.message, true))
+    postPublish('github')
+      .then((j) => notify(j.summary || 'Created a pending review on GitHub.'))
+      .catch((e) => notify('Publish failed: ' + e.message, true))
       .finally(() => { btn.textContent = label; btn.disabled = false; });
   }
 
   function exportForAgent(btn) {
     const label = btn.textContent;
     btn.disabled = true;
-    fetch('/api/publish', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
-      body: JSON.stringify({mode: 'agent'}),
-    }).then((res) => res.json().then((j) => ({ok: res.ok, j}))).then(({ok, j}) => {
-      if (!ok) throw new Error(j.error || 'read failed');
-      return copyText(JSON.stringify(j.comments, null, 2));
-    }).then(() => {
-      btn.textContent = 'Copied ✓';
-      notify('Comments copied as JSON for a coding agent.');
-      setTimeout(() => { btn.textContent = label; }, 1500);
-    }).catch((e) => notify('Read failed: ' + e.message, true))
+    postPublish('agent')
+      .then((j) => copyText(JSON.stringify(j.comments, null, 2)))
+      .then(() => {
+        btn.textContent = 'Copied ✓';
+        notify('Comments copied as JSON for a coding agent.');
+        setTimeout(() => { btn.textContent = label; }, 1500);
+      })
+      .catch((e) => notify('Read failed: ' + e.message, true))
       .finally(() => { btn.disabled = false; });
   }
 
@@ -390,37 +398,42 @@
     return null;
   }
   function firstAnchor(fw) {
-    let anchor = null;
-    fw.querySelectorAll('tr').forEach((tr) => {
-      if (!anchor) anchor = lineAnchor(tr);
-    });
-    return anchor || {line: 1, side: 'RIGHT'};
+    for (const tr of fw.querySelectorAll('tr')) {
+      const anchor = lineAnchor(tr);
+      if (anchor) return anchor;
+    }
+    return {line: 1, side: 'RIGHT'};
   }
 
   // Render the comment thread for one line into its cell. The composer is only
   // shown when showComposer is true, so a line with saved comments displays them
   // on their own — clicking the line number again reveals the composer to add more.
+  // A rendered comment: its (sanitized) markdown body plus a delete button.
+  function commentItem(rec, label, onDelete) {
+    const item = document.createElement('div');
+    item.className = 'saga-cmt';
+    const body = document.createElement('div');
+    body.className = 'saga-cmt-body';
+    body.innerHTML = renderMarkdown(rec.body);
+    const del = document.createElement('button');
+    del.className = 'saga-cmt-del';
+    del.textContent = '✕';
+    del.title = label;
+    del.setAttribute('aria-label', label);
+    del.addEventListener('click', onDelete);
+    item.appendChild(body);
+    item.appendChild(del);
+    return item;
+  }
+
   function renderThread(td, path, line, side, row, showComposer) {
     td.innerHTML = '';
     liveInline(path, line, side).forEach((c) => {
-      const item = document.createElement('div');
-      item.className = 'saga-cmt';
-      const body = document.createElement('div');
-      body.className = 'saga-cmt-body';
-      body.innerHTML = renderMarkdown(c.body);
-      const del = document.createElement('button');
-      del.className = 'saga-cmt-del';
-      del.textContent = '✕';
-      del.title = 'Delete comment';
-      del.setAttribute('aria-label', 'Delete comment');
-      del.addEventListener('click', () => {
+      td.appendChild(commentItem(c, 'Delete comment', () => {
         deleteRecord(c);
         if (!liveInline(path, line, side).length) row.remove();
         else renderThread(td, path, line, side, row, false);
-      });
-      item.appendChild(body);
-      item.appendChild(del);
-      td.appendChild(item);
+      }));
     });
     if (!showComposer) return null;
     const composer = document.createElement('div');
@@ -500,24 +513,11 @@
       panel.innerHTML = '';
       const rec = liveFileComment(path);
       if (rec) {
-        const item = document.createElement('div');
-        item.className = 'saga-cmt';
-        const body = document.createElement('div');
-        body.className = 'saga-cmt-body';
-        body.innerHTML = renderMarkdown(rec.body);
-        const del = document.createElement('button');
-        del.className = 'saga-cmt-del';
-        del.textContent = '✕';
-        del.title = 'Delete file comment';
-        del.setAttribute('aria-label', 'Delete file comment');
-        del.addEventListener('click', () => {
+        panel.appendChild(commentItem(rec, 'Delete file comment', () => {
           deleteRecord(rec);
           render();
           refreshBtn();
-        });
-        item.appendChild(body);
-        item.appendChild(del);
-        panel.appendChild(item);
+        }));
       }
       const composer = document.createElement('div');
       composer.className = 'saga-cmt-composer';
@@ -551,8 +551,7 @@
   function fileURL(path) {
     const fl = data.file_links;
     if (!fl) return null;
-    // diff2html shows renames as "old → new"; link the new path.
-    const rel = path.split(' → ').pop().trim();
+    const rel = newPath(path);
     if (fl.type === 'github') {
       return fl.base + '/' + rel.split('/').map(encodeURIComponent).join('/');
     }
@@ -577,11 +576,15 @@
     nameEl.appendChild(a);
   }
 
+  // diff2html renders a rename as "old → new"; comments and links key off the
+  // new path so a stored anchor matches the file GitHub knows.
+  function newPath(display) { return display.split(' → ').pop().trim(); }
+
   // After a chapter's diff is drawn, make its lines and files commentable.
   function wireComments(container) {
     container.querySelectorAll('.d2h-file-wrapper').forEach((fw) => {
       const nameEl = fw.querySelector('.d2h-file-name');
-      const path = nameEl ? nameEl.textContent.trim() : '';
+      const path = nameEl ? newPath(nameEl.textContent) : '';
       if (!path) return;
       linkifyFileName(fw, path);
       wireFileComment(fw, path);
@@ -613,8 +616,7 @@
 
   function show() {
     chapters = data.chapters || [];
-    const fileState = parseEmbedded() ||
-      {schema: 1, sagaId: '', updatedAt: 0, overall: null, file: [], inline: []};
+    const fileState = parseEmbedded() || emptyEnv();
     sagaId = fileState.sagaId || readSlug;
     env = SagaMerge.mergeEnvelope(fileState, loadBuffer(), sagaId);
     // A merge may have pulled in a newer buffer than the file — persist it, and
