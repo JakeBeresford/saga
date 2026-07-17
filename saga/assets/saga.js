@@ -775,8 +775,14 @@
   }
 
   function renderMarkdown(text) {
-    if (window.marked && text) return window.marked.parse(text);
-    return esc(text || '');
+    if (!text) return '';
+    // Narration and comment bodies reach innerHTML, so marked's HTML must be
+    // sanitized — narration is LLM output derived from the branch under review.
+    // With DOMPurify unavailable, escape the raw text rather than emit unsafe HTML.
+    if (window.marked && window.DOMPurify) {
+      return window.DOMPurify.sanitize(window.marked.parse(text));
+    }
+    return esc(text);
   }
 
   function renderChapterDiff(ch) {
