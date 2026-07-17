@@ -180,16 +180,18 @@
     rec.updatedAt = now();
     onChange();
   }
+  function updateRecord(rec, body) {
+    rec.body = body;
+    rec.updatedAt = now();
+    onChange();
+  }
+  // Add or update the file comment for a path (callers guarantee a non-empty
+  // body; deletion goes through deleteRecord).
   function setFileComment(path, body, anchor) {
     const rec = liveFileComment(path);
-    if (body) {
-      if (rec) { rec.body = body; rec.updatedAt = now(); }
-      else env.file.push({id: uid(), path: path, line: anchor.line, side: anchor.side,
-                          body: body, updatedAt: now(), deletedAt: null});
-    } else if (rec) {
-      rec.deletedAt = now();
-      rec.updatedAt = now();
-    }
+    if (rec) { rec.body = body; rec.updatedAt = now(); }
+    else env.file.push({id: uid(), path: path, line: anchor.line, side: anchor.side,
+                        body: body, updatedAt: now(), deletedAt: null});
     onChange();
   }
   function setOverall(body) {
@@ -408,21 +410,63 @@
   // Render the comment thread for one line into its cell. The composer is only
   // shown when showComposer is true, so a line with saved comments displays them
   // on their own — clicking the line number again reveals the composer to add more.
-  // A rendered comment: its (sanitized) markdown body plus a delete button.
-  function commentItem(rec, label, onDelete) {
+  // A rendered comment: its (sanitized) markdown body plus edit and delete
+  // buttons. Edit swaps the body in place for a prefilled composer; Save routes
+  // the new text through onSave, Cancel restores the read view untouched.
+  function commentItem(rec, delLabel, onDelete, onSave) {
     const item = document.createElement('div');
-    item.className = 'saga-cmt';
-    const body = document.createElement('div');
-    body.className = 'saga-cmt-body';
-    body.innerHTML = renderMarkdown(rec.body);
-    const del = document.createElement('button');
-    del.className = 'saga-cmt-del';
-    del.textContent = '✕';
-    del.title = label;
-    del.setAttribute('aria-label', label);
-    del.addEventListener('click', onDelete);
-    item.appendChild(body);
-    item.appendChild(del);
+
+    function showView() {
+      item.className = 'saga-cmt';
+      item.innerHTML = '';
+      const body = document.createElement('div');
+      body.className = 'saga-cmt-body';
+      body.innerHTML = renderMarkdown(rec.body);
+      const edit = document.createElement('button');
+      edit.className = 'saga-cmt-edit';
+      edit.textContent = '✎';
+      edit.title = 'Edit comment';
+      edit.setAttribute('aria-label', 'Edit comment');
+      edit.addEventListener('click', showEditor);
+      const del = document.createElement('button');
+      del.className = 'saga-cmt-del';
+      del.textContent = '✕';
+      del.title = delLabel;
+      del.setAttribute('aria-label', delLabel);
+      del.addEventListener('click', onDelete);
+      item.appendChild(body);
+      item.appendChild(edit);
+      item.appendChild(del);
+    }
+
+    // Edit turns this element into the composer itself (not a composer nested
+    // inside the rendered-comment box), so the input matches the new-comment UI
+    // exactly — same class, same full width, same position.
+    function showEditor() {
+      item.className = 'saga-cmt-composer';
+      item.innerHTML = '';
+      const ta = document.createElement('textarea');
+      ta.className = 'saga-cmt-input';
+      ta.value = rec.body;
+      const save = document.createElement('button');
+      save.className = 'saga-btn saga-cmt-save';
+      save.textContent = 'Update';
+      save.addEventListener('click', () => {
+        const v = ta.value.trim();
+        if (!v) return;
+        onSave(v);
+      });
+      const cancel = document.createElement('button');
+      cancel.className = 'saga-btn saga-cmt-cancel';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', showView);
+      item.appendChild(ta);
+      item.appendChild(save);
+      item.appendChild(cancel);
+      ta.focus();
+    }
+
+    showView();
     return item;
   }
 
@@ -433,6 +477,9 @@
         deleteRecord(c);
         if (!liveInline(path, line, side).length) row.remove();
         else renderThread(td, path, line, side, row, false);
+      }, (body) => {
+        updateRecord(c, body);
+        renderThread(td, path, line, side, row, false);
       }));
     });
     if (!showComposer) return null;
@@ -491,8 +538,9 @@
 
   // Per-file comment control injected into a diff2html file header. The panel
   // re-renders after every save/delete so the reviewer gets the same visible
-  // feedback an inline thread does — the saved note shows above the editor, and
-  // the header button reflects whether a comment exists.
+  // feedback an inline thread does — a saved note shows on its own with edit and
+  // delete controls (no lingering composer), the composer appears only when no
+  // note exists yet, and the header button reflects whether a comment exists.
   function wireFileComment(fw, path) {
     const header = fw.querySelector('.d2h-file-header');
     if (!header) return;
@@ -513,24 +561,30 @@
       panel.innerHTML = '';
       const rec = liveFileComment(path);
       if (rec) {
+        // A saved note stands on its own — edit/delete in place, no composer
+        // trailing below (that stray second editor was the file-comment bug).
         panel.appendChild(commentItem(rec, 'Delete file comment', () => {
           deleteRecord(rec);
           render();
           refreshBtn();
+        }, (body) => {
+          setFileComment(path, body, firstAnchor(fw));
+          render();
+          refreshBtn();
         }));
+        return;
       }
       const composer = document.createElement('div');
       composer.className = 'saga-cmt-composer';
       const ta = document.createElement('textarea');
       ta.className = 'saga-cmt-input';
       ta.placeholder = 'Comment on the whole file…';
-      ta.value = rec ? rec.body : '';
       const save = document.createElement('button');
       save.className = 'saga-btn';
-      save.textContent = rec ? 'Update file comment' : 'Save file comment';
+      save.textContent = 'Save file comment';
       save.addEventListener('click', () => {
         const v = ta.value.trim();
-        if (!v && !rec) return;
+        if (!v) return;
         setFileComment(path, v, firstAnchor(fw));
         render();
         refreshBtn();

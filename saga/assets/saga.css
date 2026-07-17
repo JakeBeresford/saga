@@ -257,10 +257,12 @@
   background: var(--surface); padding: 1px 5px; border-radius: var(--radius-sm);
   font-family: var(--font-mono); font-size: var(--fs-xs);
 }
+.saga-cmt-edit,
 .saga-cmt-del {
   font: inherit; font-size: var(--fs-xs); cursor: pointer; line-height: 1;
   color: var(--text-faint); background: none; border: none; padding: 2px 4px;
 }
+.saga-cmt-edit:hover { color: var(--accent); }
 .saga-cmt-del:hover { color: var(--danger); }
 
 .saga-cmt-composer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
