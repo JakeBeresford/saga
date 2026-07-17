@@ -48,6 +48,17 @@ _MAX_TOKENS = 16000
 # Enforced as a schema validator so the model is asked to consolidate and retry
 # rather than the whole saga being thrown away.
 _MAX_CHAPTERS = 10
+# Rough chars-per-token ratio for diff text (code + diff markers). Deliberately a
+# slight over-count: better to warn a hair early than to ship a call the provider
+# rejects after we've already paid for the input tokens.
+_CHARS_PER_TOKEN = 4
+# Soft ceiling on estimated input tokens for one saga call. Past this, the diff
+# won't fit most providers' context — and even where it fits, the 10-chapter cap
+# can't tell a coherent story about it — so we refuse before spending anything.
+# Tuned for a ~200k-context model (default anthropic/claude-opus-4-8), leaving
+# room for the system prompt + _MAX_TOKENS of output. Lower it for a smaller
+# window; raise it for a large-context model. Override with $SAGA_MAX_INPUT_TOKENS.
+_MAX_INPUT_TOKENS = 180_000
 # Total attempts (initial + retries) to coax a within-limit saga out of a model.
 _MAX_ATTEMPTS = 3
 _OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -302,6 +313,18 @@ def generate(
     provider = model.split("/", 1)[0]
     system_prompt = _PROMPT_PATH.read_text()
     user_message = _build_message(diff, hunks, intent)
+
+    est_tokens = len(system_prompt + user_message) // _CHARS_PER_TOKEN
+    limit = int(os.environ.get("SAGA_MAX_INPUT_TOKENS", _MAX_INPUT_TOKENS))
+    if est_tokens > limit:
+        raise SagaError(
+            f"This change set is too large for a single saga: ~{est_tokens:,} "
+            f"estimated input tokens across {len(hunks)} hunks (ceiling ~{limit:,}). "
+            "saga tells one coherent story about a focused change — split this into "
+            "smaller diffs (narrow --base/--head to a sub-range, or review a few "
+            "files at a time), or raise the ceiling with $SAGA_MAX_INPUT_TOKENS if "
+            "your model has the context for it."
+        )
 
     if provider == "claude-cli":
         result = _generate_via_claude_cli(model, system_prompt, user_message)
