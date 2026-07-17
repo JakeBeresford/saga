@@ -165,6 +165,45 @@ def test_generate_empty_diff_raises_before_any_network(empty_diff_repo: Path):
         )
 
 
+def test_generate_oversized_diff_raises_before_any_network(git_repo: Path, monkeypatch):
+    """A diff over the input-token ceiling is refused before a client is built, so
+    no tokens are spent on a call the provider would reject anyway."""
+    monkeypatch.setattr(gen, "_MAX_INPUT_TOKENS", 5)  # any real diff exceeds this
+
+    def no_client(model):
+        pytest.fail("should not build a client for an oversized diff")
+
+    def no_cli(model, system_prompt, user_message):
+        pytest.fail("should not shell out for an oversized diff")
+
+    monkeypatch.setattr(gen, "_build_client", no_client)
+    monkeypatch.setattr(gen, "_generate_via_claude_cli", no_cli)
+    diff, sha = _diff_and_sha(git_repo)
+    with pytest.raises(SagaError, match="too large for a single saga"):
+        generate(
+            diff,
+            base="main",
+            head="feature",
+            commit_sha=sha,
+            model="anthropic/claude-opus-4-8",
+        )
+
+
+def test_generate_input_ceiling_honors_env_override(git_repo: Path, monkeypatch):
+    """$SAGA_MAX_INPUT_TOKENS overrides the built-in ceiling."""
+    monkeypatch.setenv("SAGA_MAX_INPUT_TOKENS", "5")
+    monkeypatch.setattr(gen, "_build_client", lambda model: pytest.fail("no client"))
+    diff, sha = _diff_and_sha(git_repo)
+    with pytest.raises(SagaError, match="too large for a single saga"):
+        generate(
+            diff,
+            base="main",
+            head="feature",
+            commit_sha=sha,
+            model="anthropic/claude-opus-4-8",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Full generation, replayed from a scrubbed cassette
 # ---------------------------------------------------------------------------
