@@ -109,6 +109,8 @@ def test_render_produces_self_contained_document(git_repo: Path, stub_vendored):
     assert "/* diff2html.min.css */" in html
     assert "/* diff2html-ui.min.js */" in html
     assert "/* marked.min.js */" in html
+    # DOMPurify is inlined so marked's HTML can be sanitized client-side.
+    assert "/* purify.min.js */" in html
     # Saga data is embedded as a JS global.
     assert "window.__sagaData =" in html
     # base...head crumb.

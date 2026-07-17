@@ -39,6 +39,9 @@ _CDN = {
     "diff2html.min.css": "https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css",
     "diff2html-ui.min.js": "https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js",
     "marked.min.js": "https://cdn.jsdelivr.net/npm/marked/marked.min.js",
+    # DOMPurify sanitizes marked's HTML before it hits innerHTML — narration is
+    # LLM output derived from the branch under review, so it is not trusted.
+    "purify.min.js": "https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js",
 }
 
 
@@ -132,6 +135,7 @@ def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
         [
             _vendored("diff2html-ui.min.js"),
             _vendored("marked.min.js"),
+            _vendored("purify.min.js"),
             f"window.__sagaData = {_json_for_script(payload)};",
             _asset("saga-merge.js"),
             _asset("saga.js"),
