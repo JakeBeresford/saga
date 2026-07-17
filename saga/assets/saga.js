@@ -67,6 +67,14 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // Move focus to a swapped-in view's heading so keyboard and screen-reader
+  // users land in the new content instead of being dropped on <body>.
+  function focusHeading(el) {
+    if (!el) return;
+    el.tabIndex = -1;
+    el.focus({preventScroll: true});
+  }
+
   // --- mark-as-read (localStorage) -----------------------------------
 
   function readKey() { return 'saga-read:' + readSlug; }
@@ -404,6 +412,7 @@
       del.className = 'saga-cmt-del';
       del.textContent = '✕';
       del.title = 'Delete comment';
+      del.setAttribute('aria-label', 'Delete comment');
       del.addEventListener('click', () => {
         deleteRecord(c);
         if (!liveInline(path, line, side).length) row.remove();
@@ -500,6 +509,7 @@
         del.className = 'saga-cmt-del';
         del.textContent = '✕';
         del.title = 'Delete file comment';
+        del.setAttribute('aria-label', 'Delete file comment');
         del.addEventListener('click', () => {
           deleteRecord(rec);
           render();
@@ -582,7 +592,16 @@
         if (!anchor) return;
         lnCell.classList.add('saga-linenum');
         lnCell.title = 'Comment on this line';
-        lnCell.addEventListener('click', () => insertComposerRow(tr, path, anchor.line, anchor.side));
+        // A line-number cell is a button for keyboard and screen-reader users,
+        // not just a click target.
+        lnCell.tabIndex = 0;
+        lnCell.setAttribute('role', 'button');
+        lnCell.setAttribute('aria-label', 'Comment on line ' + anchor.line);
+        const openComposer = () => insertComposerRow(tr, path, anchor.line, anchor.side);
+        lnCell.addEventListener('click', openComposer);
+        lnCell.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openComposer(); }
+        });
         if (liveInline(path, anchor.line, anchor.side).length) {
           insertComposerRow(tr, path, anchor.line, anchor.side);
         }
@@ -706,6 +725,7 @@
       b.addEventListener('click', () => openChapter(parseInt(b.dataset.i, 10)));
     });
     $('saga-wrapup-item').addEventListener('click', openReview);
+    focusHeading(toc.querySelector('.saga-toc-title'));
   }
 
   // The wrap-up page: overall comment + publish/export controls. Reached from the
@@ -733,7 +753,7 @@
       '<textarea id="saga-overall" class="saga-cmt-input saga-overall" placeholder="Overall review comment…"></textarea>' +
       '<div class="saga-review-actions">' +
       '<span class="saga-cmt-count" id="saga-cmt-count"></span>' +
-      '<span class="saga-status-pill" id="saga-status"></span>' +
+      '<span class="saga-status-pill" id="saga-status" role="status" aria-live="polite"></span>' +
       '<button class="saga-btn" id="saga-export" data-label="Copy for agent" hidden>Copy for agent</button>' +
       '<button class="saga-btn saga-btn-primary" id="saga-publish" hidden>Publish to GitHub</button>' +
       '</div>' +
@@ -753,6 +773,7 @@
     if (exportBtn) exportBtn.addEventListener('click', () => exportForAgent(exportBtn));
     updateCount();
     applyMode();
+    focusHeading(view.querySelector('.saga-toc-title'));
     window.scrollTo(0, 0);
   }
 
@@ -811,6 +832,7 @@
     $('saga-read-cb').addEventListener('change', (e) => setRead(ch.id, e.target.checked));
 
     renderChapterDiff(ch);
+    focusHeading(reader.querySelector('.saga-chapter-title'));
     window.scrollTo(0, 0);
   }
 
