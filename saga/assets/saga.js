@@ -218,12 +218,19 @@
   let reconnectTimer = null;
   let pendingWrite = false;   // an edit is buffered but not yet confirmed in the file
 
+  // Authoring is served-only. Over file:// (or any page that never reached the
+  // server) the review is read-only: existing comments still render, but nothing
+  // new can be drafted — a comment authored here could never leave the browser
+  // (localStorage is origin-scoped, so `saga serve` can't see it), so we don't
+  // let one be written in the first place.
+  function canComment() { return mode === 'served'; }
+
   function setStatus(state) {
     const el = $('saga-status');
     if (!el) return;
     const labels = {
       saved: 'Saved', saving: 'Saving…',
-      reconnecting: 'Reconnecting…', draft: 'Draft (this browser only)',
+      reconnecting: 'Reconnecting…', draft: 'Read-only (open with saga serve)',
     };
     el.textContent = labels[state] || '';
     el.dataset.state = state;
@@ -308,7 +315,7 @@
   }
 
   // Toggle the served-only controls and the static banner, and seed the pill.
-  function applyMode() {
+  function applyModeControls() {
     const served = mode === 'served';
     const banner = $('saga-static-banner');
     if (banner) banner.hidden = served;
@@ -317,6 +324,16 @@
     if (publish) publish.hidden = !served;
     if (exportBtn) exportBtn.hidden = !served;
     setStatus(served ? 'saved' : 'draft');
+  }
+
+  // Apply the controls and, because the mode is settled asynchronously (a served
+  // page renders as static until /api/session answers), re-render whichever view
+  // is open so its comment affordances match the confirmed mode. The reader has
+  // no such controls to seed, so it only needs the re-render.
+  function applyMode() {
+    applyModeControls();
+    if (!$('saga-reader').hidden) openChapter(current);
+    else if (!$('saga-review-view').hidden) openReview();
   }
 
   function notify(message, isError) {
@@ -422,6 +439,9 @@
       const body = document.createElement('div');
       body.className = 'saga-cmt-body';
       body.innerHTML = renderMarkdown(rec.body);
+      item.appendChild(body);
+      // Read-only views (file://) show the comment without edit/delete controls.
+      if (!canComment()) return;
       const edit = document.createElement('button');
       edit.className = 'saga-cmt-edit';
       edit.textContent = '✎';
@@ -434,7 +454,6 @@
       del.title = delLabel;
       del.setAttribute('aria-label', delLabel);
       del.addEventListener('click', onDelete);
-      item.appendChild(body);
       item.appendChild(edit);
       item.appendChild(del);
     }
@@ -482,7 +501,7 @@
         renderThread(td, path, line, side, row, false);
       }));
     });
-    if (!showComposer) return null;
+    if (!showComposer || !canComment()) return null;
     const composer = document.createElement('div');
     composer.className = 'saga-cmt-composer';
     const ta = document.createElement('textarea');
@@ -544,6 +563,9 @@
   function wireFileComment(fw, path) {
     const header = fw.querySelector('.d2h-file-header');
     if (!header) return;
+    // Read-only (file://): only surface the control when a saved note exists to
+    // display — there is nothing to author.
+    if (!canComment() && !liveFileComment(path)) return;
     const btn = document.createElement('button');
     btn.className = 'saga-file-cmt-btn';
     header.appendChild(btn);
@@ -647,18 +669,22 @@
         if (!lnCell) return;
         const anchor = lineAnchor(tr);
         if (!anchor) return;
-        lnCell.classList.add('saga-linenum');
-        lnCell.title = 'Comment on this line';
-        // A line-number cell is a button for keyboard and screen-reader users,
-        // not just a click target.
-        lnCell.tabIndex = 0;
-        lnCell.setAttribute('role', 'button');
-        lnCell.setAttribute('aria-label', 'Comment on line ' + anchor.line);
-        const openComposer = () => insertComposerRow(tr, path, anchor.line, anchor.side);
-        lnCell.addEventListener('click', openComposer);
-        lnCell.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openComposer(); }
-        });
+        // Only served pages can author, so only they make the gutter a comment
+        // target; read-only pages still render any saved thread below.
+        if (canComment()) {
+          lnCell.classList.add('saga-linenum');
+          lnCell.title = 'Comment on this line';
+          // A line-number cell is a button for keyboard and screen-reader users,
+          // not just a click target.
+          lnCell.tabIndex = 0;
+          lnCell.setAttribute('role', 'button');
+          lnCell.setAttribute('aria-label', 'Comment on line ' + anchor.line);
+          const openComposer = () => insertComposerRow(tr, path, anchor.line, anchor.side);
+          lnCell.addEventListener('click', openComposer);
+          lnCell.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openComposer(); }
+          });
+        }
         if (liveInline(path, anchor.line, anchor.side).length) {
           insertComposerRow(tr, path, anchor.line, anchor.side);
         }
@@ -792,8 +818,8 @@
     $('saga-reader').hidden = true;
     const view = $('saga-review-view');
     view.hidden = false;
-    const bannerText = 'Drafting in this browser only — open with ' +
-      '<code>saga serve ./saga.html</code> to save into the file and publish to GitHub.';
+    const bannerText = 'Read-only — open with ' +
+      '<code>saga serve ./saga.html</code> to leave comments and publish to GitHub.';
     const nav =
       '<div class="saga-reader-nav saga-nav-top">' +
       '<button class="saga-btn saga-toc-link">☰ Contents</button>' +
@@ -821,14 +847,19 @@
     if (overall) {
       const o = liveOverall();
       overall.value = o ? o.body : '';
-      overall.addEventListener('input', () => setOverall(overall.value.trim()));
+      if (canComment()) {
+        overall.addEventListener('input', () => setOverall(overall.value.trim()));
+      } else {
+        overall.readOnly = true;
+        if (!o) overall.placeholder = 'Open with saga serve to leave a comment.';
+      }
     }
     const publish = $('saga-publish');
     if (publish) publish.addEventListener('click', () => publishGithub(publish));
     const exportBtn = $('saga-export');
     if (exportBtn) exportBtn.addEventListener('click', () => exportForAgent(exportBtn));
     updateCount();
-    applyMode();
+    applyModeControls();
     focusHeading(view.querySelector('.saga-toc-title'));
     window.scrollTo(0, 0);
   }
@@ -866,8 +897,12 @@
       '<button class="saga-btn saga-wrapup">Wrap up →</button>' +
       '</div>';
 
+    const roBanner = canComment() ? '' :
+      '<div class="saga-banner">Read-only — open with ' +
+      '<code>saga serve ./saga.html</code> to leave comments.</div>';
+
     reader.innerHTML =
-      navRow('saga-nav-top') +
+      navRow('saga-nav-top') + roBanner +
       '<div class="saga-chapter-head">' +
       '<span class="saga-num">' + (i + 1) + '</span>' +
       '<h2 class="saga-chapter-title">' + esc(ch.title) + '</h2>' +
