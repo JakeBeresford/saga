@@ -57,12 +57,12 @@
   --danger-loud-border:light-dark(#c62828, #f2685f);
 
   /* --- diff shading (derived from status hues) --- */
-  --diff-add-bg:     light-dark(rgba(26,127,67,0.12), rgba(78,201,138,0.10));
-  --diff-add-strong: light-dark(rgba(26,127,67,0.25), rgba(78,201,138,0.30));
-  --diff-add-gutter: light-dark(rgba(26,127,67,0.18), rgba(78,201,138,0.15));
-  --diff-del-bg:     light-dark(rgba(198,40,40,0.10), rgba(242,104,95,0.10));
-  --diff-del-strong: light-dark(rgba(198,40,40,0.22), rgba(242,104,95,0.30));
-  --diff-del-gutter: light-dark(rgba(198,40,40,0.15), rgba(242,104,95,0.15));
+  --diff-add-bg:     light-dark(rgba(26,127,67,0.12), rgba(78,201,138,0.18));
+  --diff-add-strong: light-dark(rgba(26,127,67,0.25), rgba(78,201,138,0.42));
+  --diff-add-gutter: light-dark(rgba(26,127,67,0.18), rgba(78,201,138,0.28));
+  --diff-del-bg:     light-dark(rgba(198,40,40,0.10), rgba(242,104,95,0.18));
+  --diff-del-strong: light-dark(rgba(198,40,40,0.22), rgba(242,104,95,0.42));
+  --diff-del-gutter: light-dark(rgba(198,40,40,0.15), rgba(242,104,95,0.28));
   --diff-info-bg:    light-dark(rgba(14,116,144,0.10), rgba(87,199,227,0.10));
 
   /* --- type --- */
