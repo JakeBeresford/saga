@@ -111,6 +111,9 @@ def test_render_produces_self_contained_document(git_repo: Path, stub_vendored):
     assert "/* marked.min.js */" in html
     # DOMPurify is inlined so marked's HTML can be sanitized client-side.
     assert "/* purify.min.js */" in html
+    # highlight.js token themes, each scoped to its diff2html color scheme.
+    assert ".d2h-light-color-scheme {\n/* github.min.css */" in html
+    assert ".d2h-dark-color-scheme {\n/* github-dark.min.css */" in html
     # Saga data is embedded as a JS global.
     assert "window.__sagaData =" in html
     # base...head crumb.

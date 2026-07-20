@@ -42,6 +42,10 @@ _CDN = {
     # DOMPurify sanitizes marked's HTML before it hits innerHTML — narration is
     # LLM output derived from the branch under review, so it is not trusted.
     "purify.min.js": "https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js",
+    # highlight.js token themes. diff2html already runs the bundled highlight.js
+    # but ships no token colors; these supply them, one per color scheme.
+    "github.min.css": "https://cdn.jsdelivr.net/npm/highlight.js/styles/github.min.css",
+    "github-dark.min.css": "https://cdn.jsdelivr.net/npm/highlight.js/styles/github-dark.min.css",
 }
 
 
@@ -56,6 +60,23 @@ def _vendored(name: str) -> str:
 
 def _asset(name: str) -> str:
     return (_ASSETS / name).read_text()
+
+
+def _hljs_styles() -> str:
+    """highlight.js token colors, scoped to diff2html's color-scheme wrapper.
+
+    diff2html already runs the bundled highlight.js (``ui.highlightCode()``) but
+    ships no token theme, so the ``hljs-*`` spans render uncolored. We vendor
+    GitHub's light and dark themes and scope each (via CSS nesting) under the
+    class diff2html stamps on the wrapper — ``.d2h-{light,dark}-color-scheme`` —
+    which the front end keeps in sync with the reader's theme. Highlighting then
+    follows the toggle with no extra JS, and each theme's bare ``hljs-*`` rules
+    stay confined to their scheme instead of the last one winning globally.
+    """
+    return (
+        f".d2h-light-color-scheme {{\n{_vendored('github.min.css')}\n}}\n"
+        f".d2h-dark-color-scheme {{\n{_vendored('github-dark.min.css')}\n}}"
+    )
 
 
 def _diffstat(diff_text: str) -> dict:
@@ -127,6 +148,7 @@ def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
         [
             _asset("tokens.css"),
             _vendored("diff2html.min.css"),
+            _hljs_styles(),
             _asset("base.css"),
             _asset("saga.css"),
         ]
