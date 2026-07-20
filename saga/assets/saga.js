@@ -913,7 +913,45 @@
     const ui = new Diff2HtmlUI(container, ch.diff, CONFIG);
     ui.draw();
     ui.highlightCode();
+    collapseDeletedFiles(container);
     wireComments(container);
+  }
+
+  // A wholesale file deletion is a wall of red that says nothing a one-line
+  // summary can't. Collapse each deleted file to a compact banner (kept next to
+  // its header, so the filename, DELETED tag and file-comment control stay put)
+  // and hide the removed lines behind a toggle for the reviewer who wants them.
+  function collapseDeletedFiles(container) {
+    container.querySelectorAll('.d2h-file-wrapper').forEach((fw) => {
+      if (!fw.querySelector('.d2h-file-header .d2h-deleted-tag')) return;
+      const body = fw.querySelector('.d2h-file-diff, .d2h-files-diff');
+      if (!body || body.dataset.sagaCollapsed) return;
+      body.dataset.sagaCollapsed = '1';
+      body.hidden = true;
+
+      const removed = fw.querySelectorAll('td.d2h-code-linenumber.d2h-del').length;
+      const banner = document.createElement('div');
+      banner.className = 'saga-deleted-file';
+      const label = document.createElement('span');
+      label.className = 'saga-deleted-label';
+      label.textContent = removed
+        ? 'File deleted · ' + removed + ' line' + (removed === 1 ? '' : 's') + ' removed'
+        : 'File deleted';
+      const toggle = document.createElement('button');
+      toggle.className = 'saga-btn saga-deleted-toggle';
+      toggle.type = 'button';
+      toggle.textContent = 'Show removed lines';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.addEventListener('click', () => {
+        const shown = !body.hidden;
+        body.hidden = shown;
+        toggle.textContent = shown ? 'Show removed lines' : 'Hide removed lines';
+        toggle.setAttribute('aria-expanded', String(!shown));
+      });
+      banner.appendChild(label);
+      banner.appendChild(toggle);
+      body.parentNode.insertBefore(banner, body);
+    });
   }
 
   // Flush a pending debounced write before the tab is backgrounded or closed.

@@ -178,6 +178,16 @@
 .saga-chapter-diff { margin-top: 8px; }
 .saga-empty { color: var(--text-dim); font-size: var(--fs-base); padding: 16px 0; }
 
+/* Deleted file: a compact banner in place of the wall of red. Red-tinted to
+   match the diff-del family — deletion is destructive — but calm, not loud. */
+.saga-deleted-file {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; background: var(--diff-del-bg);
+  border-top: 1px solid var(--line);
+}
+.saga-deleted-label { color: var(--text-dim); font-size: var(--fs-base); }
+.saga-deleted-toggle { margin-left: auto; }
+
 /* --- comments: overall review, inline threads, per-file notes --- */
 
 .saga-review {
