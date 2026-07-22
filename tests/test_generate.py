@@ -9,6 +9,7 @@ Re-record with a real key via:  SAGA_RECORD=1 ANTHROPIC_API_KEY=... pytest
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
@@ -17,7 +18,6 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import saga.generate as gen
 from saga.diff import compute_diff, rev_parse
 from saga.generate import (
     _MAX_ATTEMPTS,
@@ -32,6 +32,10 @@ from saga.generate import (
     labeled_diff,
 )
 from saga.model import SagaError, parse_hunks
+
+# ``saga.generate`` the attribute is the re-exported function (public API), so
+# reach the module — which the tests monkeypatch — through the import system.
+gen = importlib.import_module("saga.generate")
 
 
 def _diff_and_sha(repo: Path, base: str = "main", head: str = "feature"):
@@ -117,7 +121,6 @@ def test_build_client_unknown_provider_raises_sagaerror(monkeypatch):
 def _capture_from_provider(monkeypatch) -> dict:
     """Patch instructor.from_provider to record its args instead of building a
     real client, so local-provider wiring can be checked without a server."""
-    import saga.generate as gen
 
     captured: dict = {}
 
@@ -131,7 +134,6 @@ def _capture_from_provider(monkeypatch) -> dict:
 
 
 def test_build_client_local_defaults_to_ollama(monkeypatch):
-    import saga.generate as gen
 
     monkeypatch.delenv("SAGA_LOCAL_BASE_URL", raising=False)
     captured = _capture_from_provider(monkeypatch)
@@ -238,7 +240,6 @@ def test_generate_full_saga_from_cassette(git_repo: Path, vcr_cassette, monkeypa
 def test_generate_wraps_provider_errors_as_sagaerror(git_repo: Path, monkeypatch):
     """A failure from the LLM client is surfaced as a SagaError, not a raw
     provider exception."""
-    import saga.generate as gen
 
     class BoomClient:
         def create(self, **kwargs):
@@ -284,7 +285,6 @@ def _envelope(**fields) -> str:
 
 def _fake_claude(monkeypatch, *, stdout: str, returncode: int = 0) -> dict:
     """Patch subprocess.run to skip the real binary and record how it was called."""
-    import saga.generate as gen
 
     captured: dict = {}
 
@@ -344,7 +344,6 @@ def test_claude_cli_tolerates_leading_warning_line(monkeypatch):
 
 
 def test_claude_cli_missing_binary_raises_sagaerror(monkeypatch):
-    import saga.generate as gen
 
     def boom(cmd, **kwargs):
         raise FileNotFoundError("claude")
@@ -427,7 +426,6 @@ def test_claude_cli_gives_up_after_max_attempts_over_limit(monkeypatch):
 
 def test_generate_dispatches_to_claude_cli(git_repo: Path, monkeypatch):
     """A claude-cli model routes through the subprocess path, not instructor."""
-    import saga.generate as gen
 
     called: dict = {}
 

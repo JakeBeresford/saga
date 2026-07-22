@@ -1,13 +1,17 @@
 """Tests for HTML rendering: payload assembly, script-safe JSON escaping, the
 self-contained document shell, and the vendored-asset cache."""
 
+import importlib
 from pathlib import Path
 
 import pytest
 
-import saga.render as render_mod
 from saga.diff import compute_diff
 from saga.model import Chapter, Saga
+
+# ``saga.render`` the attribute is the re-exported function (public API), so
+# reach the module — which the tests monkeypatch — through the import system.
+render_mod = importlib.import_module("saga.render")
 
 
 def _feature_diff(git_repo: Path):
