@@ -168,6 +168,26 @@ def test_agent_view_drops_deleted_overall():
     assert agent_view(env)["overall"] is None
 
 
+def test_agent_view_carries_agent_status_and_reply():
+    inline = _rec("i1", "a.py", 2, "RIGHT", "keep")
+    inline["status"], inline["reply"] = "addressed", "done"
+    env = {
+        "overall": {
+            "body": "ok",
+            "deletedAt": None,
+            "status": "addressed",
+            "reply": "r",
+        },
+        "file": [],
+        "inline": [inline],
+    }
+    view = agent_view(env)
+    assert view["overall"]["status"] == "addressed"
+    assert view["overall"]["reply"] == "r"
+    assert view["inline"][0]["status"] == "addressed"
+    assert view["inline"][0]["reply"] == "done"
+
+
 # --- resolve --------------------------------------------------------------
 
 

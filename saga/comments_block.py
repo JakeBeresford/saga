@@ -24,6 +24,15 @@ The envelope shape (``schema`` 1)::
 resurrect it). Per-file notes carry a ``line``/``side`` anchor — GitHub's review
 API has no file-level comment, so the front end anchors them to the file's first
 changed line, exactly as inline comments are anchored.
+
+Each comment may also carry two optional, additive **agent-written** fields, set
+by a downstream tool (not the browser) once it has acted on the comment:
+
+* ``status``: ``"open"`` (default/absent) | ``"addressed"``.
+* ``reply``: ``str | null`` — the agent's note on how it addressed the comment.
+
+Absent means ``open``/no-reply, so existing sagas and the browser's own comment
+flow are unaffected; the front end renders them read-only.
 """
 
 from __future__ import annotations
@@ -38,6 +47,9 @@ SCHEMA = 1
 
 START = "<!--SAGA:COMMENTS:START-->"
 END = "<!--SAGA:COMMENTS:END-->"
+
+# The permitted values of a comment's optional agent-written ``status`` field.
+_AGENT_STATUS = ("open", "addressed")
 
 # Serializes the server's read-modify-write so concurrent autosaves can't
 # interleave and lose the block.
@@ -56,6 +68,21 @@ class SentinelsMissing(BlockError):
     """The file has no ``SAGA:COMMENTS`` sentinels — it is not a servable saga."""
 
 
+def _check_agent_state(c: dict, where: str) -> None:
+    """Guard a comment's optional agent-written ``status``/``reply`` fields.
+
+    Both are additive: absent ``status`` ⇒ ``open``, absent ``reply`` ⇒ none.
+    When present they must be well-typed so a round-trip through the envelope is
+    unambiguous (and so an agent can safely skip already-``addressed`` comments).
+    """
+    status = c.get("status")
+    if status is not None and status not in _AGENT_STATUS:
+        raise BlockError(f"{where} 'status' must be one of {_AGENT_STATUS} or absent.")
+    reply = c.get("reply")
+    if reply is not None and not isinstance(reply, str):
+        raise BlockError(f"{where} 'reply' must be a string or null.")
+
+
 def validate_envelope(data: object) -> dict:
     """Light shape check for an envelope, whatever its source (PUT body or a
     hand-written sidecar). Raises ``BlockError`` on an obviously malformed shape.
@@ -63,7 +90,8 @@ def validate_envelope(data: object) -> dict:
     Deliberately lenient: it guards the fields the GitHub-push mapper needs
     (``path``/``line`` on inline, ``path`` on file notes) without demanding the
     bookkeeping fields (``id``/``updatedAt``/``deletedAt``) a hand author would
-    not write.
+    not write. The optional agent-written ``status``/``reply`` fields are
+    permitted on any comment and shape-checked only when present.
     """
     if not isinstance(data, dict):
         raise BlockError("envelope must be a JSON object.")
@@ -76,9 +104,12 @@ def validate_envelope(data: object) -> dict:
                 raise BlockError(f"each {key} comment needs a 'path' and a 'body'.")
             if key == "inline" and "line" not in c:
                 raise BlockError("each inline comment needs a 'line'.")
+            _check_agent_state(c, f"{key} comment")
     overall = data.get("overall")
     if overall is not None and (not isinstance(overall, dict) or "body" not in overall):
         raise BlockError("'overall' must be null or an object with a 'body'.")
+    if isinstance(overall, dict):
+        _check_agent_state(overall, "'overall'")
     return data
 
 
