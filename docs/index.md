@@ -36,3 +36,4 @@ is just `saga`. See [Installation]({% link installation.md %}) and
 - [Providers]({% link providers.md %}) — Anthropic, OpenAI, OpenRouter, local LLMs, and the Claude Code CLI.
 - [Reviewing]({% link reviewing.md %}) — leaving comments on a saga and publishing them to GitHub.
 - [How it works]({% link how-it-works.md %}) — the pipeline, end to end.
+- [Library API]({% link library_api.md %}) — the supported surface for importing saga.
