@@ -432,6 +432,32 @@
   // Render the comment thread for one line into its cell. The composer is only
   // shown when showComposer is true, so a line with saved comments displays them
   // on their own — clicking the line number again reveals the composer to add more.
+  // The agent's resolution of a comment, rendered read-only: an "addressed"
+  // badge plus the agent's reply. These optional fields are written by a
+  // downstream tool (not the browser); absent status/reply ⇒ null, so untouched
+  // comments look exactly as before.
+  function agentState(rec) {
+    if (!rec) return null;
+    const addressed = rec.status === 'addressed';
+    const reply = (rec.reply || '').trim();
+    if (!addressed && !reply) return null;
+    const wrap = document.createElement('div');
+    wrap.className = 'saga-cmt-agent';
+    if (addressed) {
+      const badge = document.createElement('span');
+      badge.className = 'saga-cmt-badge';
+      badge.textContent = 'addressed';
+      wrap.appendChild(badge);
+    }
+    if (reply) {
+      const r = document.createElement('div');
+      r.className = 'saga-cmt-reply';
+      r.innerHTML = renderMarkdown(reply);
+      wrap.appendChild(r);
+    }
+    return wrap;
+  }
+
   // A rendered comment: its (sanitized) markdown body plus edit and delete
   // buttons. Edit swaps the body in place for a prefilled composer; Save routes
   // the new text through onSave, Cancel restores the read view untouched.
@@ -444,6 +470,8 @@
       const body = document.createElement('div');
       body.className = 'saga-cmt-body';
       body.innerHTML = renderMarkdown(rec.body);
+      const agent = agentState(rec);
+      if (agent) body.appendChild(agent);
       item.appendChild(body);
       // Read-only views (file://) show the comment without edit/delete controls.
       if (!canComment()) return;
@@ -858,6 +886,8 @@
         overall.readOnly = true;
         if (!o) overall.placeholder = 'Open with saga serve to leave a comment.';
       }
+      const oState = agentState(o);
+      if (oState) overall.insertAdjacentElement('afterend', oState);
     }
     const publish = $('saga-publish');
     if (publish) publish.addEventListener('click', () => publishGithub(publish));

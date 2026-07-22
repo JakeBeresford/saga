@@ -275,6 +275,21 @@
 .saga-cmt-edit:hover { color: var(--accent); }
 .saga-cmt-del:hover { color: var(--danger); }
 
+/* Agent-written resolution, shown read-only beneath a comment body. */
+.saga-cmt-agent { margin-top: 8px; }
+.saga-cmt-badge {
+  display: inline-block; font-family: var(--font-mono); font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-mono); text-transform: uppercase;
+  color: var(--accent); background: var(--accent-tint);
+  border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 1px 6px;
+}
+.saga-cmt-reply {
+  margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--line);
+  color: var(--text-dim); font-size: var(--fs-sm); line-height: 1.5;
+}
+.saga-cmt-reply p { margin: 0 0 6px; }
+.saga-cmt-reply p:last-child { margin-bottom: 0; }
+
 .saga-cmt-composer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
 .saga-cmt-composer .saga-cmt-input { flex: 1 1 240px; min-height: 44px; }
 .saga-cmt-composer .saga-btn { flex: 0 0 auto; }

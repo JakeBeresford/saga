@@ -127,3 +127,66 @@ def test_read_saga_meta_missing_returns_empty(tmp_path):
     path = tmp_path / "nometa.html"
     path.write_text("<html></html>")
     assert comments_block.read_saga_meta(path) == {}
+
+
+# --- validate_envelope: agent-written status/reply ------------------------
+
+
+def _cmt(**over):
+    base = {"id": "c1", "path": "a.py", "line": 3, "side": "RIGHT", "body": "x"}
+    base.update(over)
+    return base
+
+
+def test_validate_accepts_agent_status_and_reply():
+    env = {
+        "overall": {"body": "ok", "status": "addressed", "reply": "fixed it"},
+        "file": [_cmt(status="open", reply=None)],
+        "inline": [_cmt(status="addressed", reply="done in commit abc")],
+    }
+    assert comments_block.validate_envelope(env) is env
+
+
+def test_validate_accepts_comments_without_agent_fields():
+    env = {"file": [], "inline": [_cmt()], "overall": {"body": "ok"}}
+    assert comments_block.validate_envelope(env) is env
+
+
+def test_validate_rejects_unknown_status():
+    with pytest.raises(comments_block.BlockError, match="status"):
+        comments_block.validate_envelope({"inline": [_cmt(status="banana")]})
+
+
+def test_validate_rejects_non_string_reply():
+    with pytest.raises(comments_block.BlockError, match="reply"):
+        comments_block.validate_envelope({"inline": [_cmt(reply=5)]})
+
+
+def test_validate_rejects_bad_status_on_overall():
+    with pytest.raises(comments_block.BlockError, match="status"):
+        comments_block.validate_envelope({"overall": {"body": "ok", "status": "nope"}})
+
+
+def test_agent_fields_survive_a_write_round_trip(tmp_path):
+    path = tmp_path / "saga.html"
+    path.write_text(
+        _doc(comments_block.render_block(comments_block.empty_envelope("feedface")))
+    )
+    env = comments_block.read_envelope(path)
+    env["inline"] = [
+        {
+            "id": "c1",
+            "path": "a.py",
+            "line": 3,
+            "side": "RIGHT",
+            "body": "x",
+            "updatedAt": 2,
+            "deletedAt": None,
+            "status": "addressed",
+            "reply": "handled",
+        }
+    ]
+    comments_block.write_envelope(path, env)
+    back = comments_block.read_envelope(path)["inline"][0]
+    assert back["status"] == "addressed"
+    assert back["reply"] == "handled"
