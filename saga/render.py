@@ -134,8 +134,22 @@ def _json_for_script(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
-def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
-    """Build the complete self-contained HTML document for *saga*."""
+def render(
+    saga: Saga,
+    diff: DiffResult,
+    file_links: dict | None = None,
+    *,
+    api_base: str = "",
+    publish_modes: tuple[str, ...] = ("github", "agent"),
+) -> str:
+    """Build the complete self-contained HTML document for *saga*.
+
+    *api_base* prefixes the front end's ``/api/*`` fetches so several sagas can
+    share one origin (an empty string — the default — keeps today's absolute
+    ``/api/*`` paths). *publish_modes* is the set of wrap-up actions the page
+    offers: ``"github"`` shows "Publish to GitHub", ``"agent"`` shows "Copy for
+    agent"; dropping a mode hides its button.
+    """
     payload = build_payload(saga, diff, file_links)
     # The comments block is the durable, in-file store review comments live in
     # (rewritten by `saga serve`). Its sagaId — minted once here — is the front
@@ -158,6 +172,8 @@ def render(saga: Saga, diff: DiffResult, file_links: dict | None = None) -> str:
             _vendored("diff2html-ui.min.js"),
             _vendored("marked.min.js"),
             _vendored("purify.min.js"),
+            f"window.__sagaApiBase = {json.dumps(api_base)};",
+            f"window.__sagaPublishModes = {json.dumps(list(publish_modes))};",
             f"window.__sagaData = {_json_for_script(payload)};",
             _asset("saga-merge.js"),
             _asset("saga.js"),
