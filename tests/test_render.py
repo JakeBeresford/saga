@@ -124,6 +124,30 @@ def test_render_produces_self_contained_document(git_repo: Path, stub_vendored):
     assert "main...feature" in html
 
 
+def test_render_defaults_api_base_and_publish_modes(git_repo: Path, stub_vendored):
+    """With no overrides the page keeps absolute /api/* paths (empty api_base)
+    and offers both publish modes — today's CLI behavior."""
+    html = render_mod.render(_saga_for(), _feature_diff(git_repo))
+    assert 'window.__sagaApiBase = "";' in html
+    assert 'window.__sagaPublishModes = ["github", "agent"];' in html
+
+
+def test_render_injects_api_base(git_repo: Path, stub_vendored):
+    """A caller mounting several sagas on one origin sets api_base so the front
+    end prefixes its /api/* fetches."""
+    html = render_mod.render(_saga_for(), _feature_diff(git_repo), api_base="/branch/x")
+    assert 'window.__sagaApiBase = "/branch/x";' in html
+
+
+def test_render_restricts_publish_modes(git_repo: Path, stub_vendored):
+    """Dropping "github" from publish_modes tells the page to hide the
+    Publish-to-GitHub button, keeping a GitHub-read-only host's invariant."""
+    html = render_mod.render(
+        _saga_for(), _feature_diff(git_repo), publish_modes=("agent",)
+    )
+    assert 'window.__sagaPublishModes = ["agent"];' in html
+
+
 def test_render_escapes_angle_brackets_in_payload(
     git_repo: Path, monkeypatch, stub_vendored
 ):

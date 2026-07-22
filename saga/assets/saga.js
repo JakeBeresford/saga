@@ -19,6 +19,11 @@
 (function () {
   const data = window.__sagaData || {chapters: [], verdict: null, branch: ''};
   const readSlug = data.branch || 'saga';
+  // API_BASE lets several sagas share one origin: the three /api/* fetches are
+  // prefixed with it (empty string ⇒ today's absolute paths). PUBLISH_MODES is
+  // the set of wrap-up actions the page offers ('github' / 'agent').
+  const API_BASE = window.__sagaApiBase || '';
+  const PUBLISH_MODES = window.__sagaPublishModes || ['github', 'agent'];
   const CONFIG = {
     drawFileList: false, matching: 'lines',
     outputFormat: 'line-by-line', highlight: true, colorScheme: 'dark',
@@ -245,7 +250,7 @@
   function sync(opts) {
     clearTimeout(syncTimer);
     setStatus('saving');
-    return fetch('/api/comments', {
+    return fetch(API_BASE + '/api/comments', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
       body: JSON.stringify(env),
@@ -272,7 +277,7 @@
     setStatus('reconnecting');
     if (reconnectTimer) return;
     reconnectTimer = setInterval(() => {
-      fetch('/api/session').then((res) => {
+      fetch(API_BASE + '/api/session').then((res) => {
         if (!res.ok) throw new Error('session ' + res.status);
         return res.json();
       }).then((s) => {
@@ -297,7 +302,7 @@
   }
 
   function detectMode() {
-    return fetch('/api/session').then((res) => {
+    return fetch(API_BASE + '/api/session').then((res) => {
       if (!res.ok) throw new Error('session ' + res.status);
       return res.json();
     }).then((s) => {
@@ -321,8 +326,8 @@
     if (banner) banner.hidden = served;
     const publish = $('saga-publish');
     const exportBtn = $('saga-export');
-    if (publish) publish.hidden = !served;
-    if (exportBtn) exportBtn.hidden = !served;
+    if (publish) publish.hidden = !served || !PUBLISH_MODES.includes('github');
+    if (exportBtn) exportBtn.hidden = !served || !PUBLISH_MODES.includes('agent');
     setStatus(served ? 'saved' : 'draft');
   }
 
@@ -352,7 +357,7 @@
   // POST a publish mode and resolve with the parsed JSON, rejecting on a non-OK
   // response so both callers share one error path.
   function postPublish(mode) {
-    return fetch('/api/publish', {
+    return fetch(API_BASE + '/api/publish', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-Saga-Token': token},
       body: JSON.stringify({mode: mode}),
